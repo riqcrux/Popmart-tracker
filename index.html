@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pop Mart Indonesia Release Tracker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2246%22 fill=%22%23ffffff%22 stroke=%22%231d1b19%22 stroke-width=%226%22/><circle cx=%2250%22 cy=%2252%22 r=%2234%22 fill=%22%23ffdfd3%22/><path d=%22M24 38 Q50 18 76 38%22 fill=%22%23e4572e%22/><circle cx=%2238%22 cy=%2252%22 r=%225%22 fill=%22%231d1b19%22/><circle cx=%2262%22 cy=%2252%22 r=%225%22 fill=%22%231d1b19%22/><circle cx=%2239%22 cy=%2250%22 r=%221.8%22 fill=%22%23ffffff%22/><circle cx=%2263%22 cy=%2250%22 r=%221.8%22 fill=%22%23ffffff%22/><path d=%22M44 63 Q50 67 56 63%22 fill=%22none%22 stroke=%22%231d1b19%22 stroke-width=%223.5%22 stroke-linecap=%22round%22/><circle cx=%2210%22 cy=%2250%22 r=%227%22 fill=%22%23e4572e%22/><circle cx=%2290%22 cy=%2250%22 r=%227%22 fill=%22%23e4572e%22/></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--bg:#faf7f2;--card:#fff;--ink:#1d1b19;--mute:#6b6560;--line:#e8e1d6;--accent:#e4572e;--accent-ink:#fff;--ok:#2e7d5b;--warn:#a8701a;--soft:#f3ede3;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{--bg:#faf7f2;--card:#fff;--ink:#1d1b19;--mute:#6b6560;--line:#e8e1d6;--accent:#e4572e;--accent-ink:#fff;--ok:#2e7d5b;--warn:#a8701a;--soft:#f3ede3;--shopee:#ee4d2d;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171513;--card:#211e1b;--ink:#f3eee8;--mute:#a39b92;--line:#35302b;--accent:#ff7a4d;--accent-ink:#1a1008;--ok:#5fc596;--warn:#e0b050;--soft:#2a2622;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#171513;--card:#211e1b;--ink:#f3eee8;--mute:#a39b92;--line:#35302b;--accent:#ff7a4d;--accent-ink:#1a1008;--ok:#5fc596;--warn:#e0b050;--soft:#2a2622;color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -21,10 +22,16 @@ h1{font-size:24px;margin:0 0 4px}
 .auth-btns{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .btn-sm{appearance:none;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .btn-sm.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.auth-box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;display:none;flex-direction:column;gap:10px;max-width:400px}
-.auth-box.open{display:flex}
-.auth-box input{padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
-.auth-msg{font-size:12.5px;color:var(--accent);margin:0}
+.btn-sm.admin{background:var(--ok);border-color:var(--ok);color:#fff}
+.panel-box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;display:none;flex-direction:column;gap:10px}
+.panel-box.open{display:flex}
+.auth-box{max-width:400px}
+.admin-box{max-width:600px;border-color:var(--ok)}
+.panel-box input,.panel-box select,.panel-box textarea{padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;width:100%}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.form-row{grid-template-columns:1fr}}
+.form-lbl{font-size:12.5px;font-weight:600;color:var(--mute);margin-bottom:4px;display:block}
+.msg-txt{font-size:12.5px;color:var(--accent);margin:0;font-weight:500}
 .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:14px;overflow-x:auto}
 .tab{appearance:none;background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;font:inherit;font-weight:600;color:var(--mute);cursor:pointer;white-space:nowrap}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
@@ -46,9 +53,10 @@ h3{margin:2px 0;font-size:16px;line-height:1.3}
 .price{color:var(--ink);font-weight:600}
 .when{font-size:13.5px;font-weight:600}
 .where,.note{margin:0;font-size:13.5px;color:var(--mute)}
-.acts{display:flex;gap:8px;margin-top:auto;padding-top:8px}
-.act{flex:1;appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px;font:inherit;font-size:13.5px;cursor:pointer}
-.act.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.card-footer{margin-top:auto;padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.btn-shopee{display:block;text-align:center;background:var(--shopee);color:#fff !important;text-decoration:none;font-weight:700;font-size:13.5px;padding:9px 12px;border-radius:10px}
+.btn-shopee:hover{opacity:.92}
+.btn-del{appearance:none;border:1px solid #d9534f;background:transparent;color:#d9534f;border-radius:8px;padding:5px 8px;font-size:12px;font-weight:600;cursor:pointer}
 h2{font-size:17px;margin:20px 0 10px}
 .empty{color:var(--mute);padding:24px 0}
 .info{margin-top:28px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:14px}
@@ -72,7 +80,7 @@ a{color:var(--accent)}
 <body>
 <div class="wrap">
   <h1>Pop Mart Indonesia Release Tracker</h1>
-  <p class="sub">Newest and upcoming drops in Indonesia · last updated 16 Nov 2026</p>
+  <p class="sub">Newest and upcoming drops in Indonesia · Tracker & Wishlist Kolektor</p>
 
   <div class="auth-bar">
     <div id="status" class="status">Browsing only (Masuk untuk simpan wishlist)</div>
@@ -81,7 +89,8 @@ a{color:var(--accent)}
     </div>
   </div>
 
-  <div class="auth-box" id="authBox">
+  <!-- BOX LOGIN / DAFTAR -->
+  <div class="panel-box auth-box" id="authBox">
     <strong>Masuk atau Buat Akun Kolektor</strong>
     <input type="email" id="authEmail" placeholder="Email kamu">
     <input type="password" id="authPass" placeholder="Password (minimal 6 karakter)">
@@ -90,7 +99,63 @@ a{color:var(--accent)}
       <button class="btn-sm" id="btnSignup" style="flex:1">Daftar Baru</button>
       <button class="btn-sm" id="btnCloseAuth">Tutup</button>
     </div>
-    <p class="auth-msg" id="authMsg"></p>
+    <p class="msg-txt" id="authMsg"></p>
+  </div>
+
+  <!-- PANEL ADMIN KHUSUS riky.andr89@gmail.com -->
+  <div class="panel-box admin-box" id="adminBox">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong style="color:var(--ok)">Admin Panel: Tambah Produk Pop Mart</strong>
+      <button class="btn-sm" id="btnCloseAdmin">Tutup</button>
+    </div>
+    <div>
+      <label class="form-lbl">Upload Foto Produk (dari Galeri HP / Komputer)</label>
+      <input type="file" id="admFile" accept="image/*">
+    </div>
+    <div class="form-row">
+      <div>
+        <label class="form-lbl">Nama Seri / Produk *</label>
+        <input type="text" id="admName" placeholder="Contoh: The Monsters - Have a Seat">
+      </div>
+      <div>
+        <label class="form-lbl">Karakter / IP *</label>
+        <input type="text" id="admIp" placeholder="Contoh: Labubu / Hirono / Crybaby">
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label class="form-lbl">Harga (Angka saja, kosongkan jika belum rilis)</label>
+        <input type="number" id="admPrice" placeholder="Contoh: 280000">
+      </div>
+      <div>
+        <label class="form-lbl">Status Rilis</label>
+        <select id="admStatus">
+          <option value="released">Released (Sudah Rilis)</option>
+          <option value="upcoming">Upcoming (Segera Rilis)</option>
+          <option value="watch">Watch (Pantau Rilis Indo)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label class="form-lbl">Tipe Produk</label>
+        <input type="text" id="admType" value="Blind box" placeholder="Blind box / Figure / Plush">
+      </div>
+      <div>
+        <label class="form-lbl">Keterangan Tanggal Rilis</label>
+        <input type="text" id="admDateNote" placeholder="Contoh: Rilis Jumat, 20 Nov 2026">
+      </div>
+    </div>
+    <div>
+      <label class="form-lbl">Link Shopee Affiliate (Opsional)</label>
+      <input type="url" id="admShopee" placeholder="https://s.shopee.co.id/...">
+    </div>
+    <div>
+      <label class="form-lbl">Lokasi Beli & Catatan Tambahan</label>
+      <input type="text" id="admWhere" value="Official online store & Pop Mart Indonesia stores." placeholder="Info toko atau catatan secret">
+    </div>
+    <button class="btn-sm admin" id="btnSaveProd" style="padding:10px;font-size:14px">Simpan & Tayangkan Produk</button>
+    <p class="msg-txt" id="admMsg"></p>
   </div>
 
   <div class="tabs" role="tablist">
@@ -113,20 +178,21 @@ a{color:var(--accent)}
       <li>POP MART Official Store on Lazada, and the <a href="https://www.tiktok.com/@popmartindonesia" target="_blank" rel="noopener">official TikTok</a> for drop announcements</li>
       <li>Stores in Jakarta (including Grand Indonesia), Tangerang, Bandung, Surabaya, Semarang, Medan (Sun Plaza), Makassar, Bali (Beachwalk) and Serpong (Summarecon Mall), plus the ROBOSHOP vending machine at Menara Astra</li>
     </ul>
-    <p class="fine">Prices are from the official Indonesia store at the time it was checked and can change. Items marked “Watch” have launched elsewhere but have no confirmed Indonesia date yet. Always confirm on official channels before buying.</p>
+    <p class="fine">Prices are from the official Indonesia store at the time it was checked and can change. Some product links on this site are affiliate links. Always confirm on official channels before buying.</p>
   </section>
 </div>
 
 <script>
 const SUPABASE_URL = "https://szjhyffwyqiildkqhqxq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_a_k_rtkwsg4-kEOyylDHKA_ZcBikFXH";
+const ADMIN_EMAIL = "riky.andr89@gmail.com";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const AD=[{id:"masked",name:"Masked"},{id:"runaway",name:"Runaway"},{id:"off-script",name:"Off Script"},{id:"drifting-by",name:"Drifting By"},{id:"hollow",name:"Hollow"},{id:"upside-down",name:"Upside Down"},{id:"old-dream",name:"Old Dream",secret:true}];
 const CB=[{id:"cheer",name:"Cheer Bear"},{id:"always-there",name:"Always There Bear"},{id:"friend",name:"Friend Bear"},{id:"funshine",name:"Funshine Bear"},{id:"good-luck",name:"Good Luck Bear"},{id:"wish",name:"Wish Bear"},{id:"bedtime",name:"Bedtime Bear"},{id:"grumpy",name:"Grumpy Bear"},{id:"share",name:"Share Bear"},{id:"work-of-heart",name:"Work of Heart Bear",secret:true}];
 const AT=[{id:"bound-by-tears",name:"Bound by Tears"},{id:"midnight-waltz",name:"Midnight Waltz"},{id:"watch-your-back",name:"Watch Your Back"},{id:"porcelain-heart",name:"The Porcelain Heart"},{id:"sol-luna",name:"Sol & Luna Jester"},{id:"take-the-stage",name:"Take the Stage"},{id:"mirror-dweller",name:"The Mirror Dweller"},{id:"the-lodger",name:"The Lodger"},{id:"trapped-wishes",name:"Trapped Wishes"},{id:"buried-in-dust",name:"Buried in Dust",secret:true}];
 
-const R=[
+const STATIC_R=[
 {id:"ugreen-hacipupu",st:"upcoming",name:"UGREEN × POP MART HACIPUPU: The Little Forest Mage",ip:"Hacipupu",type:"Collab",price:null,date:"2026-11-12",dateNote:"Reveal started 12 Nov, a new item about every 10 days",where:"Revealed on UGREEN’s official site (Indonesia page). Sale dates and prices are not announced yet.",note:"First UGREEN × POP MART collaboration."},
 {id:"dimoo-flying",blind:true,st:"watch",name:"DIMOO Flying Fantasy Series Figures",ip:"Dimoo",type:"Figure",price:null,date:null,dateNote:"On sale in China since 5 Nov 2026",where:"Indonesia date not confirmed.",note:"Check the Friday drops on the official Indonesia store."},
 {id:"hirono-underverse",blind:true,st:"watch",name:"Hirono × Underverse WWR Series",ip:"Hirono",type:"Collab",price:null,date:null,dateNote:"Announced in China on 6 Nov 2026",where:"Indonesia date not confirmed.",note:"Watch POP MART Indonesia’s TikTok for an announcement."},
@@ -143,21 +209,27 @@ const R=[
 {id:"hacipupu-shinchan",blind:true,st:"released",name:"HACIPUPU × Crayon Shinchan: One Day in Kasukabe Series Figures",ip:"Hacipupu",type:"Figure",price:185000,date:null,dateNote:"Listed in the store’s New Arrivals",where:"Official online store.",note:""}
 ];
 
+let DB_R = [];
 const LABEL={released:"Released",upcoming:"Upcoming",watch:"Watch"};
 let tab="released",ip="All",q="";
 let wish=new Set(),owned=new Set();
 let currentUser=null,saveTimer=null,saving=false,pending=false;
 
 const $=s=>document.querySelector(s);
-const rp=n=>"Rp"+n.toLocaleString("id-ID");
+const rp=n=>"Rp"+Number(n).toLocaleString("id-ID");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const isAdmin=()=>currentUser && currentUser.email && currentUser.email.toLowerCase()===ADMIN_EMAIL.toLowerCase();
+
+function allProducts(){
+  return [...DB_R, ...STATIC_R];
+}
 
 function when(r){
   if(r.date){
     const d=Math.ceil((new Date(r.date+"T00:00:00")-new Date())/864e5);
     if(d>0)return r.dateNote+" · in "+d+" day"+(d===1?"":"s");
   }
-  return r.dateNote;
+  return r.dateNote || "Baru ditambahkan";
 }
 
 function hue(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h;}
@@ -193,13 +265,18 @@ function acts(r){
 
 function card(r){
   const price=r.priceNote?esc(r.priceNote):(r.price!=null?rp(r.price):"Price not announced");
+  const shopeeBtn = r.shopee ? '<a class="btn-shopee" href="'+esc(r.shopee)+'" target="_blank" rel="noopener nofollow">Beli di Shopee</a>' : '';
+  const delBtn = (isAdmin() && r.dbId) ? '<button class="btn-del" data-del="'+r.dbId+'">Hapus Produk (Admin)</button>' : '';
+  const footer = (shopeeBtn || delBtn) ? '<div class="card-footer">'+shopeeBtn+delBtn+'</div>' : '';
+
   return '<article class="card">'+pic(r)+'<div class="top"><span class="tag t-'+r.st+'">'+LABEL[r.st]+'</span><span class="ip">'+esc(r.ip)+'</span></div>'+
   '<h3>'+esc(r.name)+'</h3><div class="meta"><span>'+esc(r.type)+'</span><span class="price">'+price+'</span></div>'+
   '<div class="when">'+esc(when(r))+'</div><p class="where">'+esc(r.where)+'</p>'+(r.note?'<p class="note">'+esc(r.note)+'</p>':'')+
-  acts(r)+'</article>';
+  acts(r)+footer+'</article>';
 }
 
 function pool(){
+  const R = allProducts();
   if(tab==="released")return R.filter(r=>r.st==="released");
   if(tab==="upcoming")return R.filter(r=>r.st!=="released");
   return R.filter(mark);
@@ -215,7 +292,7 @@ function render(){
   $("#chips").innerHTML=ips.map(i=>'<button class="chip" data-ip="'+esc(i)+'" aria-pressed="'+(i===ip)+'">'+esc(i)+'</button>').join("");
   const s=q.trim().toLowerCase();
   const list=base.filter(r=>(ip==="All"||r.ip===ip)&&(!s||(r.name+" "+r.ip).toLowerCase().includes(s)));
-  list.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  list.sort((a,b)=>(b.dbId||0)-(a.dbId||0) || (b.date||"").localeCompare(a.date||""));
   if(!list.length){
     $("#out").innerHTML='<p class="empty">'+(tab==="mine"?"Nothing here yet. Tap ♡ or ✓ on any release.":"No matches.")+'</p>';
     return;
@@ -229,6 +306,28 @@ function render(){
 }
 
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
+
+async function fetchDbProducts(){
+  const {data,error} = await sb.from("produk_popmart").select("*").order("id",{ascending:false});
+  if(data && !error){
+    DB_R = data.map(item=>({
+      id: "db-" + item.id,
+      dbId: item.id,
+      st: item.status || "released",
+      name: item.nama_seri,
+      ip: item.karakter,
+      type: item.tipe || "Figure",
+      price: item.harga,
+      date: null,
+      dateNote: item.info_tanggal || "Rilis terbaru",
+      where: item.lokasi_beli || "Official online store.",
+      note: item.catatan || "",
+      img: item.link_foto || null,
+      shopee: item.link_shopee || null
+    }));
+    render();
+  }
+}
 
 function scheduleSave(){
   if(!currentUser)return;
@@ -262,27 +361,35 @@ async function loadUserList(user){
   if(!user){
     wish=new Set();
     owned=new Set();
+    $("#adminBox").classList.remove("open");
     setStatus("Browsing only (Masuk untuk simpan wishlist)");
     $("#authBtns").innerHTML='<button class="btn-sm primary" id="btnShowAuth">Login / Daftar</button>';
     render();
     return;
   }
   $("#authBox").classList.remove("open");
-  $("#authBtns").innerHTML='<button class="btn-sm" id="btnLogout">Logout</button>';
+  let btns = '<button class="btn-sm" id="btnLogout">Logout</button>';
+  if(isAdmin()){
+    btns = '<button class="btn-sm admin" id="btnShowAdmin">+ Admin: Tambah Produk</button>' + btns;
+  }
+  $("#authBtns").innerHTML = btns;
   setStatus("Memuat wishlist kamu...");
-  const {data,error}=await sb.from("user_lists").select("wish,owned").eq("user_id",user.id).maybeSingle();
+  const {data}=await sb.from("user_lists").select("wish,owned").eq("user_id",user.id).maybeSingle();
   if(data){
     wish=new Set(data.wish||[]);
     owned=new Set(data.owned||[]);
   }
-  setStatus("Tersimpan ke akun ("+user.email+")",true);
+  setStatus((isAdmin()?"[ADMIN] ":"")+"Tersimpan ke akun ("+user.email+")",true);
   render();
 }
 
 document.addEventListener("click",async e=>{
   if(e.target.id==="btnShowAuth"){$("#authBox").classList.toggle("open");$("#authMsg").textContent="";return;}
   if(e.target.id==="btnCloseAuth"){$("#authBox").classList.remove("open");return;}
+  if(e.target.id==="btnShowAdmin"){$("#adminBox").classList.toggle("open");$("#admMsg").textContent="";return;}
+  if(e.target.id==="btnCloseAdmin"){$("#adminBox").classList.remove("open");return;}
   if(e.target.id==="btnLogout"){await sb.auth.signOut();return;}
+
   if(e.target.id==="btnLogin"||e.target.id==="btnSignup"){
     const email=$("#authEmail").value.trim();
     const password=$("#authPass").value;
@@ -296,6 +403,73 @@ document.addEventListener("click",async e=>{
     }else if(res.data.user&&!res.data.session){
       $("#authMsg").textContent="Akun dibuat! Cek email untuk konfirmasi lalu Login.";
     }
+    return;
+  }
+
+  if(e.target.id==="btnSaveProd"){
+    if(!isAdmin())return;
+    const nama_seri = $("#admName").value.trim();
+    const karakter = $("#admIp").value.trim();
+    const hargaRaw = $("#admPrice").value.trim();
+    const status = $("#admStatus").value;
+    const tipe = $("#admType").value.trim() || "Figure";
+    const info_tanggal = $("#admDateNote").value.trim() || "Rilis terbaru";
+    const link_shopee = $("#admShopee").value.trim() || null;
+    const lokasi_beli = $("#admWhere").value.trim() || "Official online store.";
+    const file = $("#admFile").files[0];
+
+    if(!nama_seri || !karakter){
+      $("#admMsg").textContent = "Nama Seri dan Karakter wajib diisi.";
+      return;
+    }
+
+    $("#admMsg").textContent = "Menyimpan produk & mengunggah foto...";
+    let link_foto = null;
+
+    if(file){
+      const ext = file.name.split(".").pop();
+      const fileName = Date.now() + "-" + Math.random().toString(36).substring(2,8) + "." + ext;
+      const {error: upErr} = await sb.storage.from("foto-popmart").upload(fileName, file);
+      if(upErr){
+        $("#admMsg").textContent = "Gagal upload foto: " + upErr.message + " (Pastikan bucket 'foto-popmart' sudah dibuat & Public)";
+        return;
+      }
+      const {data: pubUrl} = sb.storage.from("foto-popmart").getPublicUrl(fileName);
+      link_foto = pubUrl.publicUrl;
+    }
+
+    const {error: insErr} = await sb.from("produk_popmart").insert({
+      nama_seri,
+      karakter,
+      harga: hargaRaw ? parseInt(hargaRaw, 10) : null,
+      status,
+      tipe,
+      info_tanggal,
+      link_foto,
+      link_shopee,
+      lokasi_beli
+    });
+
+    if(insErr){
+      $("#admMsg").textContent = "Gagal simpan produk: " + insErr.message;
+      return;
+    }
+
+    $("#admName").value = "";
+    $("#admPrice").value = "";
+    $("#admShopee").value = "";
+    $("#admFile").value = "";
+    $("#admMsg").textContent = "Berhasil! Produk baru sudah tayang di web.";
+    await fetchDbProducts();
+    return;
+  }
+
+  if(e.target.dataset.del){
+    if(!isAdmin())return;
+    if(!confirm("Yakin ingin menghapus produk ini?"))return;
+    const id = parseInt(e.target.dataset.del, 10);
+    await sb.from("produk_popmart").delete().eq("id", id);
+    await fetchDbProducts();
     return;
   }
 
@@ -320,6 +494,7 @@ sb.auth.onAuthStateChange((_event,session)=>{
   loadUserList(session?session.user:null);
 });
 
+fetchDbProducts();
 render();
 </script>
 </body>
