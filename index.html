@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pop Mart Indonesia Release Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#faf7f2;--card:#fff;--ink:#1d1b19;--mute:#6b6560;--line:#e8e1d6;--accent:#e4572e;--accent-ink:#fff;--ok:#2e7d5b;--warn:#a8701a;--soft:#f3ede3;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171513;--card:#211e1b;--ink:#f3eee8;--mute:#a39b92;--line:#35302b;--accent:#ff7a4d;--accent-ink:#1a1008;--ok:#5fc596;--warn:#e0b050;--soft:#2a2622;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#171513;--card:#211e1b;--ink:#f3eee8;--mute:#a39b92;--line:#35302b;--accent:#ff7a4d;--accent-ink:#1a1008;--ok:#5fc596;--warn:#e0b050;--soft:#2a2622;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:24px;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 14px;font-size:14px}
+.auth-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:14px}
+.status{font-size:13px;color:var(--mute);font-weight:500}
+.status.ok{color:var(--ok)}
+.auth-btns{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn-sm{appearance:none;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.btn-sm.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.auth-box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;display:none;flex-direction:column;gap:10px;max-width:400px}
+.auth-box.open{display:flex}
+.auth-box input{padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.auth-msg{font-size:12.5px;color:var(--accent);margin:0}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:14px;overflow-x:auto}
+.tab{appearance:none;background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;font:inherit;font-weight:600;color:var(--mute);cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+.search{flex:1 1 200px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit}
+.chips{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.chip{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:4px 11px;font:inherit;font-size:13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.tag{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;background:var(--soft)}
+.t-released{color:var(--ok)}.t-upcoming{color:var(--accent)}.t-watch{color:var(--warn)}
+.ip{font-size:12.5px;color:var(--mute)}
+.pic{position:relative;aspect-ratio:4/3;border-radius:10px;overflow:hidden;margin:-2px 0 4px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:24px;text-align:center;padding:8px;text-shadow:0 1px 3px rgba(0,0,0,.35)}
+.pic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+h3{margin:2px 0;font-size:16px;line-height:1.3}
+.meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13.5px;color:var(--mute)}
+.price{color:var(--ink);font-weight:600}
+.when{font-size:13.5px;font-weight:600}
+.where,.note{margin:0;font-size:13.5px;color:var(--mute)}
+.acts{display:flex;gap:8px;margin-top:auto;padding-top:8px}
+.act{flex:1;appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px;font:inherit;font-size:13.5px;cursor:pointer}
+.act.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+h2{font-size:17px;margin:20px 0 10px}
+.empty{color:var(--mute);padding:24px 0}
+.info{margin-top:28px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:14px}
+.info h2{margin-top:0}.info ul{margin:6px 0 0;padding-left:18px}
+a{color:var(--accent)}
+.fine{color:var(--mute);font-size:12.5px;margin-top:14px}
+.vars{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.v{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:5px 10px;font:inherit;font-size:13px;cursor:pointer}
+.v.w{border-color:var(--accent);color:var(--accent);font-weight:600}
+.v.o{background:var(--ok);border-color:var(--ok);color:#fff;font-weight:600}
+.legend{font-size:12px;color:var(--mute);margin:6px 0 0}
+.prog{font-size:13px;font-weight:600;margin-top:6px}
+.v.sel{outline:2px solid var(--ink);outline-offset:1px}
+.fab{position:absolute;top:8px;right:8px;display:flex;gap:6px}
+.ic{width:38px;height:38px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;text-shadow:none;padding:0}
+.ic.w{background:#e0457b}
+.ic.o{background:#2e9b6a}
+.lbl{position:absolute;left:8px;bottom:8px;font-size:12.5px;padding:3px 9px;border-radius:99px;background:rgba(0,0,0,.6);color:#fff;text-shadow:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pop Mart Indonesia Release Tracker</h1>
+  <p class="sub">Newest and upcoming drops in Indonesia · last updated 16 Nov 2026</p>
+
+  <div class="auth-bar">
+    <div id="status" class="status">Browsing only (Masuk untuk simpan wishlist)</div>
+    <div class="auth-btns" id="authBtns">
+      <button class="btn-sm primary" id="btnShowAuth">Login / Daftar</button>
+    </div>
+  </div>
+
+  <div class="auth-box" id="authBox">
+    <strong>Masuk atau Buat Akun Kolektor</strong>
+    <input type="email" id="authEmail" placeholder="Email kamu">
+    <input type="password" id="authPass" placeholder="Password (minimal 6 karakter)">
+    <div style="display:flex;gap:8px">
+      <button class="btn-sm primary" id="btnLogin" style="flex:1">Login</button>
+      <button class="btn-sm" id="btnSignup" style="flex:1">Daftar Baru</button>
+      <button class="btn-sm" id="btnCloseAuth">Tutup</button>
+    </div>
+    <p class="auth-msg" id="authMsg"></p>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="released" aria-selected="true">Released</button>
+    <button class="tab" role="tab" data-tab="upcoming" aria-selected="false">Upcoming</button>
+    <button class="tab" role="tab" data-tab="mine" aria-selected="false">My list <span id="cnt"></span></button>
+  </div>
+
+  <div class="tools">
+    <input id="q" class="search" type="search" placeholder="Search series or character">
+    <div id="chips" class="chips"></div>
+  </div>
+
+  <div id="out"></div>
+
+  <section class="info">
+    <h2>Where to buy in Indonesia</h2>
+    <ul>
+      <li><a href="https://www.popmart.com/en-ID" target="_blank" rel="noopener">POP MART Official Online Store (Indonesia)</a>: new releases every Friday</li>
+      <li>POP MART Official Store on Lazada, and the <a href="https://www.tiktok.com/@popmartindonesia" target="_blank" rel="noopener">official TikTok</a> for drop announcements</li>
+      <li>Stores in Jakarta (including Grand Indonesia), Tangerang, Bandung, Surabaya, Semarang, Medan (Sun Plaza), Makassar, Bali (Beachwalk) and Serpong (Summarecon Mall), plus the ROBOSHOP vending machine at Menara Astra</li>
+    </ul>
+    <p class="fine">Prices are from the official Indonesia store at the time it was checked and can change. Items marked “Watch” have launched elsewhere but have no confirmed Indonesia date yet. Always confirm on official channels before buying.</p>
+  </section>
+</div>
+
+<script>
+const SUPABASE_URL = "https://szjhyffwyqiildkqhqxq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_a_k_rtkwsg4-kEOyylDHKA_ZcBikFXH";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const AD=[{id:"masked",name:"Masked"},{id:"runaway",name:"Runaway"},{id:"off-script",name:"Off Script"},{id:"drifting-by",name:"Drifting By"},{id:"hollow",name:"Hollow"},{id:"upside-down",name:"Upside Down"},{id:"old-dream",name:"Old Dream",secret:true}];
+const CB=[{id:"cheer",name:"Cheer Bear"},{id:"always-there",name:"Always There Bear"},{id:"friend",name:"Friend Bear"},{id:"funshine",name:"Funshine Bear"},{id:"good-luck",name:"Good Luck Bear"},{id:"wish",name:"Wish Bear"},{id:"bedtime",name:"Bedtime Bear"},{id:"grumpy",name:"Grumpy Bear"},{id:"share",name:"Share Bear"},{id:"work-of-heart",name:"Work of Heart Bear",secret:true}];
+const AT=[{id:"bound-by-tears",name:"Bound by Tears"},{id:"midnight-waltz",name:"Midnight Waltz"},{id:"watch-your-back",name:"Watch Your Back"},{id:"porcelain-heart",name:"The Porcelain Heart"},{id:"sol-luna",name:"Sol & Luna Jester"},{id:"take-the-stage",name:"Take the Stage"},{id:"mirror-dweller",name:"The Mirror Dweller"},{id:"the-lodger",name:"The Lodger"},{id:"trapped-wishes",name:"Trapped Wishes"},{id:"buried-in-dust",name:"Buried in Dust",secret:true}];
+
+const R=[
+{id:"ugreen-hacipupu",st:"upcoming",name:"UGREEN × POP MART HACIPUPU: The Little Forest Mage",ip:"Hacipupu",type:"Collab",price:null,date:"2026-11-12",dateNote:"Reveal started 12 Nov, a new item about every 10 days",where:"Revealed on UGREEN’s official site (Indonesia page). Sale dates and prices are not announced yet.",note:"First UGREEN × POP MART collaboration."},
+{id:"dimoo-flying",blind:true,st:"watch",name:"DIMOO Flying Fantasy Series Figures",ip:"Dimoo",type:"Figure",price:null,date:null,dateNote:"On sale in China since 5 Nov 2026",where:"Indonesia date not confirmed.",note:"Check the Friday drops on the official Indonesia store."},
+{id:"hirono-underverse",blind:true,st:"watch",name:"Hirono × Underverse WWR Series",ip:"Hirono",type:"Collab",price:null,date:null,dateNote:"Announced in China on 6 Nov 2026",where:"Indonesia date not confirmed.",note:"Watch POP MART Indonesia’s TikTok for an announcement."},
+{id:"hirono-ad-light",st:"released",name:"Hirono After Dark: Night Light Charm Blind Box",ip:"Hirono",type:"Blind box",price:199000,variants:AD,date:"2026-09-04",dateNote:"4 Sep 2026 (Bali store 5 Sep)",where:"Jakarta, Tangerang, Bandung, Surabaya, Semarang, Medan and Makassar stores, e-commerce, and The Monsters Hair Salon pop-up at Lippo Mall Puri.",note:"6 regular designs plus 1 secret (Old Dream, about 1 in 72 boxes)."},
+{id:"hirono-ad-plush",st:"released",name:"Hirono After Dark: Plush Doll Pendant Blind Box",ip:"Hirono",type:"Blind box",price:349000,variants:AD,date:"2026-09-04",dateNote:"4 Sep 2026 (Bali store 5 Sep)",where:"Jakarta, Tangerang, Bandung, Surabaya, Semarang, Medan and Makassar stores, e-commerce, and The Monsters Hair Salon pop-up at Lippo Mall Puri.",note:"Same 7 designs as the Night Light Charm, as soft plush pendants."},
+{id:"cry-indonesia",st:"released",name:"CRYBABY Indonesia Exclusive Limited Edition",ip:"CRYBABY",type:"Limited edition",price:null,date:"2026-08-13",dateNote:"13–14 Aug 2026",where:"Launched for POP MART’s 2nd anniversary in Indonesia, alongside the 14th store at Summarecon Mall Serpong.",note:"The first Indonesia-only edition, inspired by Indonesian nature, heritage and coastal culture."},
+{id:"attic",variants:AT,st:"released",name:"The Attic of Oddities Series Figures",ip:"Attic of Oddities",type:"Figure",price:185000,date:null,dateNote:"Halloween pop-up: 16 Sep–28 Oct 2026",where:"Official online store. Pop-up at Summarecon Mall Bekasi (Oval Garden Atrium).",note:""},
+{id:"spooky-tt",st:"released",name:"Spooky Bakehouse: Twinkle Twinkle Earphone Case",ip:"Twinkle Twinkle",type:"Accessory",price:249000,date:null,dateNote:"Listed in the store’s New Arrivals",where:"Official online store.",note:""},
+{id:"spooky-labubu",st:"released",name:"Spooky Bakehouse: Labubu Cookie Mini Bag",ip:"Labubu",type:"Accessory",price:309000,date:null,dateNote:"Listed in the store’s New Arrivals",where:"Official online store.",note:""},
+{id:"crybaby-carebears",variants:CB,st:"released",name:"CRYBABY × Care Bears Series: Vinyl Plush Pendant Blind Box",ip:"CRYBABY",type:"Blind box",price:349000,date:null,dateNote:"Listed in the store’s New Arrivals",where:"Official online store.",note:""},
+{id:"naruto-chunin",blind:true,st:"released",name:"POP Action Classic NARUTO: Chunin Exam Arc Series Figures",ip:"Naruto",type:"Figure",price:309000,date:null,dateNote:"Listed in the store’s New Arrivals",where:"Official online store.",note:""},
+{id:"molly-candy",st:"released",name:"MOLLY Candy Artisan 1/8 Action Figure",ip:"Molly",type:"Figure",price:979000,date:null,dateNote:"Listed in the store’s New Arrivals",where:"Official online store.",note:""},
+{id:"nightmare",blind:true,st:"released",name:"Disney Tim Burton’s The Nightmare Before Christmas Series Figures",ip:"Disney",type:"Figure",price:185000,date:null,dateNote:"Listed in the store’s New Arrivals",where:"Official online store.",note:""},
+{id:"hacipupu-shinchan",blind:true,st:"released",name:"HACIPUPU × Crayon Shinchan: One Day in Kasukabe Series Figures",ip:"Hacipupu",type:"Figure",price:185000,date:null,dateNote:"Listed in the store’s New Arrivals",where:"Official online store.",note:""}
+];
+
+const LABEL={released:"Released",upcoming:"Upcoming",watch:"Watch"};
+let tab="released",ip="All",q="";
+let wish=new Set(),owned=new Set();
+let currentUser=null,saveTimer=null,saving=false,pending=false;
+
+const $=s=>document.querySelector(s);
+const rp=n=>"Rp"+n.toLocaleString("id-ID");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function when(r){
+  if(r.date){
+    const d=Math.ceil((new Date(r.date+"T00:00:00")-new Date())/864e5);
+    if(d>0)return r.dateNote+" · in "+d+" day"+(d===1?"":"s");
+  }
+  return r.dateNote;
+}
+
+function hue(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h;}
+function pic(r){
+  const v=curV(r),k=v?vkey(r,v):r.id,h=(hue(r.ip)+(v?r.variants.indexOf(v)*14:0))%360;
+  return '<div class="pic" style="background:linear-gradient(135deg,hsl('+h+' 65% 58%),hsl('+((h+50)%360)+' 65% 42%))">'+
+    (r.img?'<img src="'+esc(r.img)+'" alt="'+esc(r.name+(v?' - '+v.name:''))+'" loading="lazy">':'<span>'+esc(v?v.name:r.ip)+'</span>')+
+    (v?'<span class="lbl">'+esc(v.name)+(v.secret?' ★':'')+'</span>':'')+
+    '<div class="fab"><button class="ic'+(wish.has(k)?' w':'')+'" data-t="w" data-k="'+k+'" aria-label="Wishlist">'+(wish.has(k)?'♥':'♡')+'</button><button class="ic'+(owned.has(k)?' o':'')+'" data-t="o" data-k="'+k+'" aria-label="Owned">✓</button></div></div>';
+}
+
+const selV={};
+function curV(r){
+  if(!r.variants)return null;
+  const m=tab==="mine"?r.variants.find(v=>wish.has(vkey(r,v))||owned.has(vkey(r,v))):null;
+  return r.variants.find(v=>v.id===selV[r.id])||m||r.variants[0];
+}
+function vkey(r,v){return r.id+"/"+v.id;}
+function anyW(r){return wish.has(r.id)||[...wish].some(k=>k.startsWith(r.id+"/"));}
+function mark(r){return anyW(r)||owned.has(r.id)||[...owned].some(k=>k.startsWith(r.id+"/"));}
+
+function acts(r){
+  if(r.variants){
+    const sel=curV(r),n=r.variants.length;
+    const ow=r.variants.filter(v=>owned.has(vkey(r,v))).length,wi=r.variants.filter(v=>wish.has(vkey(r,v))).length;
+    return '<div class="prog">Owned '+ow+'/'+n+(wi?' · Wishlist '+wi:'')+'</div><div class="vars">'+r.variants.map(v=>{
+      const k=vkey(r,v);
+      return '<button class="v'+(v===sel?' sel':'')+(owned.has(k)?' o':(wish.has(k)?' w':''))+'" data-sel="'+r.id+'|'+v.id+'">'+(owned.has(k)?'✓ ':(wish.has(k)?'♥ ':''))+esc(v.name)+(v.secret?' ★':'')+'</button>';
+    }).join('')+'</div><p class="legend">Tap a variant to see it, then use ♡ or ✓ on the photo. ★ = secret.</p>';
+  }
+  return r.blind?'<p class="legend">Variant list not added yet. The ♡ and ✓ on the photo apply to the whole series.</p>':'';
+}
+
+function card(r){
+  const price=r.priceNote?esc(r.priceNote):(r.price!=null?rp(r.price):"Price not announced");
+  return '<article class="card">'+pic(r)+'<div class="top"><span class="tag t-'+r.st+'">'+LABEL[r.st]+'</span><span class="ip">'+esc(r.ip)+'</span></div>'+
+  '<h3>'+esc(r.name)+'</h3><div class="meta"><span>'+esc(r.type)+'</span><span class="price">'+price+'</span></div>'+
+  '<div class="when">'+esc(when(r))+'</div><p class="where">'+esc(r.where)+'</p>'+(r.note?'<p class="note">'+esc(r.note)+'</p>':'')+
+  acts(r)+'</article>';
+}
+
+function pool(){
+  if(tab==="released")return R.filter(r=>r.st==="released");
+  if(tab==="upcoming")return R.filter(r=>r.st!=="released");
+  return R.filter(mark);
+}
+
+function render(){
+  const mk=new Set([...wish,...owned].map(k=>k.split("/")[0]));
+  $("#cnt").textContent=mk.size?"("+mk.size+")":"";
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
+  const base=pool();
+  const ips=["All",...new Set(base.map(r=>r.ip))];
+  if(!ips.includes(ip))ip="All";
+  $("#chips").innerHTML=ips.map(i=>'<button class="chip" data-ip="'+esc(i)+'" aria-pressed="'+(i===ip)+'">'+esc(i)+'</button>').join("");
+  const s=q.trim().toLowerCase();
+  const list=base.filter(r=>(ip==="All"||r.ip===ip)&&(!s||(r.name+" "+r.ip).toLowerCase().includes(s)));
+  list.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  if(!list.length){
+    $("#out").innerHTML='<p class="empty">'+(tab==="mine"?"Nothing here yet. Tap ♡ or ✓ on any release.":"No matches.")+'</p>';
+    return;
+  }
+  if(tab==="mine"){
+    const w=list.filter(anyW),o=list.filter(r=>!anyW(r));
+    $("#out").innerHTML=(currentUser?"":'<p class="fine">Daftar / Login di atas supaya wishlist kamu tersimpan permanen dan tidak hilang saat browser ditutup.</p>')+(w.length?'<h2>Wishlist</h2><div class="grid">'+w.map(card).join("")+'</div>':"")+(o.length?'<h2>Owned</h2><div class="grid">'+o.map(card).join("")+'</div>':"");
+  }else{
+    $("#out").innerHTML='<div class="grid">'+list.map(card).join("")+'</div>';
+  }
+}
+
+function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
+
+function scheduleSave(){
+  if(!currentUser)return;
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(save,400);
+}
+
+async function save(){
+  saveTimer=null;
+  if(!currentUser)return;
+  if(saving){pending=true;return;}
+  saving=true;
+  setStatus("Menyimpan...",true);
+  const {error}=await sb.from("user_lists").upsert({
+    user_id:currentUser.id,
+    wish:[...wish],
+    owned:[...owned],
+    updated_at:new Date().toISOString()
+  });
+  if(error){
+    setStatus("Gagal menyimpan list");
+  }else{
+    setStatus("Tersimpan ke akun ("+currentUser.email+")",true);
+  }
+  saving=false;
+  if(pending){pending=false;save();}
+}
+
+async function loadUserList(user){
+  currentUser=user;
+  if(!user){
+    wish=new Set();
+    owned=new Set();
+    setStatus("Browsing only (Masuk untuk simpan wishlist)");
+    $("#authBtns").innerHTML='<button class="btn-sm primary" id="btnShowAuth">Login / Daftar</button>';
+    render();
+    return;
+  }
+  $("#authBox").classList.remove("open");
+  $("#authBtns").innerHTML='<button class="btn-sm" id="btnLogout">Logout</button>';
+  setStatus("Memuat wishlist kamu...");
+  const {data,error}=await sb.from("user_lists").select("wish,owned").eq("user_id",user.id).maybeSingle();
+  if(data){
+    wish=new Set(data.wish||[]);
+    owned=new Set(data.owned||[]);
+  }
+  setStatus("Tersimpan ke akun ("+user.email+")",true);
+  render();
+}
+
+document.addEventListener("click",async e=>{
+  if(e.target.id==="btnShowAuth"){$("#authBox").classList.toggle("open");$("#authMsg").textContent="";return;}
+  if(e.target.id==="btnCloseAuth"){$("#authBox").classList.remove("open");return;}
+  if(e.target.id==="btnLogout"){await sb.auth.signOut();return;}
+  if(e.target.id==="btnLogin"||e.target.id==="btnSignup"){
+    const email=$("#authEmail").value.trim();
+    const password=$("#authPass").value;
+    if(!email||password.length<6){$("#authMsg").textContent="Isi email & password minimal 6 karakter.";return;}
+    $("#authMsg").textContent="Memproses...";
+    const res=e.target.id==="btnLogin"
+      ?await sb.auth.signInWithPassword({email,password})
+      :await sb.auth.signUp({email,password});
+    if(res.error){
+      $("#authMsg").textContent=res.error.message;
+    }else if(res.data.user&&!res.data.session){
+      $("#authMsg").textContent="Akun dibuat! Cek email untuk konfirmasi lalu Login.";
+    }
+    return;
+  }
+
+  const t=e.target.closest("[data-tab],[data-ip],[data-sel],[data-t]");
+  if(!t)return;
+  if(t.dataset.sel){const p=t.dataset.sel.split("|");selV[p[0]]=p[1];render();return;}
+  if(t.dataset.t){
+    const k=t.dataset.k;
+    if(t.dataset.t==="w"){wish.has(k)?wish.delete(k):wish.add(k);}
+    else{if(owned.has(k)){owned.delete(k);}else{owned.add(k);wish.delete(k);}}
+    render();
+    scheduleSave();
+    return;
+  }
+  if(t.dataset.tab){tab=t.dataset.tab;ip="All";render();}
+  else if(t.dataset.ip){ip=t.dataset.ip;render();}
+});
+
+$("#q").addEventListener("input",e=>{q=e.target.value;render();});
+
+sb.auth.onAuthStateChange((_event,session)=>{
+  loadUserList(session?session.user:null);
+});
+
+render();
+</script>
+</body>
+</html>
