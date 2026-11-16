@@ -80,6 +80,7 @@ a{color:var(--accent)}
 .vrow{display:grid;grid-template-columns:1fr auto auto auto auto;gap:6px;align-items:center;margin-bottom:6px}
 .vrow label.chk{margin:0}
 .mbtns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.buy{display:inline-block;align-self:flex-start;margin-top:4px;padding:7px 14px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-size:13.5px;font-weight:600;text-decoration:none}
 @media (max-width:520px){.row2{grid-template-columns:1fr}}
 </style>
 </head>
@@ -164,6 +165,8 @@ a{color:var(--accent)}
     </div>
     <label for="f_where">Where to buy</label>
     <textarea id="f_where" rows="2"></textarea>
+    <label for="f_buy">Buy link (product page on the online store, starts with https://)</label>
+    <input id="f_buy" type="text" placeholder="https://www.popmart.com/en-ID/...">
     <label for="f_note">Note</label>
     <textarea id="f_note" rows="2"></textarea>
     <label for="f_img">Main photo (shown when a variant has no photo of its own)</label>
@@ -217,7 +220,7 @@ function when(r){
 
 function fromRow(p){
   const vs=(p.variants||[]).slice().sort((a,b)=>a.sort-b.sort).map(v=>({id:v.slug,name:v.name,secret:v.secret,img:v.img}));
-  return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",note:p.note||"",blind:p.blind,img:p.img,variants:vs.length?vs:null};
+  return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",buyUrl:p.buy_url||"",note:p.note||"",blind:p.blind,img:p.img,variants:vs.length?vs:null};
 }
 
 async function loadProducts(){
@@ -261,12 +264,15 @@ function acts(r){
   return r.blind?'<p class="legend">Variant list not added yet. The ♡ and ✓ on the photo apply to the whole series.</p>':"";
 }
 
+function buyLink(r){
+  return /^https?:\/\//i.test(r.buyUrl||"")?'<a class="buy" href="'+esc(r.buyUrl)+'" target="_blank" rel="noopener noreferrer">Buy online</a>':"";
+}
 function card(r){
   const price=r.priceNote?esc(r.priceNote):(r.price!=null?rp(r.price):"Price not announced");
   return '<article class="card">'+pic(r)+'<div class="top"><span class="tag t-'+r.st+'">'+LABEL[r.st]+'</span><span class="ip">'+esc(r.ip)+(isAdmin?' <button class="btn-sm" data-edit="'+esc(r.id)+'">Edit</button>':"")+'</span></div>'+
   '<h3>'+esc(r.name)+'</h3><div class="meta"><span>'+esc(r.type)+'</span><span class="price">'+price+'</span></div>'+
   '<div class="when">'+esc(when(r))+'</div><p class="where">'+esc(r.where)+'</p>'+(r.note?'<p class="note">'+esc(r.note)+'</p>':"")+
-  acts(r)+'</article>';
+  buyLink(r)+acts(r)+'</article>';
 }
 
 function pool(){
@@ -379,6 +385,7 @@ function openForm(id){
   $("#f_datenote").value=r?r.dateNote:"";
   $("#f_where").value=r?r.where:"";
   $("#f_note").value=r?r.note:"";
+  $("#f_buy").value=r?(r.buyUrl||""):"";
   $("#f_img").value=r?(r.img||""):"";
   $("#f_blind").checked=r?!!r.blind:false;
   $("#vbulk").value="";
@@ -433,6 +440,8 @@ async function saveProduct(){
   if(!id){fmsg("Use letters or numbers in the name.");return;}
   if(form.isNew&&R.some(r=>r.id===id)){fmsg("A product with this name already exists. Edit that one or change the name.");return;}
   const price=$("#f_price").value.trim();
+  const buy=$("#f_buy").value.trim();
+  if(buy&&!/^https?:\/\//i.test(buy)){fmsg("Buy link must start with https://");return;}
   const row={
     id,name,
     ip:$("#f_ip").value.trim()||"Other",
@@ -444,6 +453,7 @@ async function saveProduct(){
     date_note:$("#f_datenote").value.trim()||null,
     where_to_buy:$("#f_where").value.trim()||null,
     note:$("#f_note").value.trim()||null,
+    buy_url:buy||null,
     blind:$("#f_blind").checked,
     img:$("#f_img").value.trim()||null,
     updated_at:new Date().toISOString()
