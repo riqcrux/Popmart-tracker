@@ -205,6 +205,7 @@ let tab="released",ip="All",q="";
 let wish=new Set(),owned=new Set();
 let currentUser=null,isAdmin=false,listLoaded=false,saveTimer=null,saving=false,pending=false;
 let form=null;
+let counts={};
 let page=1,perPage=20;
 const selV={};
 
@@ -231,7 +232,7 @@ async function loadProducts(){
   loading=true;loadErr="";render();
   const {data,error}=await sb.from("products").select("*, variants(*)");
   if(error){loadErr=error.message;R=[];}
-  else{R=data.map(fromRow);}
+  else{R=data.map(fromRow);loadCounts();}
   loading=false;
   render();
 }
@@ -276,7 +277,7 @@ function card(r){
   return '<article class="card">'+pic(r)+'<div class="top"><span class="tag t-'+r.st+'">'+LABEL[r.st]+'</span><span class="ip">'+esc(r.ip)+(isAdmin?' <button class="btn-sm" data-edit="'+esc(r.id)+'">Edit</button>':"")+'</span></div>'+
   '<h3>'+esc(r.name)+'</h3><div class="meta"><span>'+esc(r.type)+'</span><span class="price">'+price+'</span></div>'+
   '<div class="when">'+esc(when(r))+'</div><p class="where">'+esc(r.where)+'</p>'+(r.note?'<p class="note">'+esc(r.note)+'</p>':"")+
-  buyLink(r)+acts(r)+'</article>';
+  buyLink(r)+stats(r)+acts(r)+'</article>';
 }
 
 function pool(){
@@ -324,6 +325,21 @@ function renderPager(total,pages){
     '<span>Page '+page+' / '+pages+'</span>'+
     '<button class="btn-sm" data-pg="next"'+(page>=pages?' disabled':'')+'>Next →</button>'+
     '<label>Per page <select id="perPage">'+[20,40,80].map(n=>'<option value="'+n+'"'+(n===perPage?' selected':'')+'>'+n+'</option>').join("")+'</select></label></div>';
+}
+async function loadCounts(){
+  const {data,error}=await sb.rpc("wishlist_counts");
+  if(error||!data)return;
+  const m={};
+  data.forEach(r=>{m[r.kind+":"+r.item]={w:Number(r.wishlisted),o:Number(r.owned)};});
+  counts=m;
+  render();
+}
+function stats(r){
+  const p=counts["product:"+r.id],v=r.variants?curV(r):null,c=v?counts["key:"+vkey(r,v)]:null;
+  let s="";
+  if(p&&(p.w+p.o))s+='♥ '+p.w+' want · ✓ '+p.o+' own';
+  if(c&&(c.w+c.o))s+=(s?'<br>':'')+esc(v.name)+': ♥ '+c.w+' · ✓ '+c.o;
+  return s?'<p class="legend">'+s+'</p>':"";
 }
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
 
