@@ -341,6 +341,21 @@ function stats(r){
   if(c&&(c.w+c.o))s+=(s?'<br>':'')+esc(v.name)+': ♥ '+c.w+' · ✓ '+c.o;
   return s?'<p class="legend">'+s+'</p>':"";
 }
+async function loadCounts(){
+  const {data,error}=await sb.rpc("wishlist_counts");
+  if(error||!data)return;
+  const m={};
+  data.forEach(r=>{m[r.kind+":"+r.item]={w:Number(r.wishlisted),o:Number(r.owned)};});
+  counts=m;
+  render();
+}
+function stats(r){
+  const p=counts["product:"+r.id],v=r.variants?curV(r):null,c=v?counts["key:"+vkey(r,v)]:null;
+  let s="";
+  if(p&&(p.w+p.o))s+='♥ '+p.w+' want · ✓ '+p.o+' own';
+  if(c&&(c.w+c.o))s+=(s?'<br>':'')+esc(v.name)+': ♥ '+c.w+' · ✓ '+c.o;
+  return s?'<p class="legend">'+s+'</p>':"";
+}
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
 
 /* ---------- wishlist saving ---------- */
