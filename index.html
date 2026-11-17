@@ -219,6 +219,7 @@ let tab="released",ip="All",q="";
 let wish=new Set(),owned=new Set();
 let currentUser=null,isAdmin=false,listLoaded=false,saveTimer=null,saving=false,pending=false;
 let form=null;
+let chipsOpen=false;
 let showArchived=false;
 let counts={};
 let page=1,perPage=20;
@@ -316,9 +317,13 @@ function render(){
   if(loading){$("#chips").innerHTML="";$("#out").innerHTML='<p class="empty">Memuat produk…</p>';return;}
   if(loadErr){$("#chips").innerHTML="";$("#out").innerHTML='<p class="empty">Gagal memuat produk: '+esc(loadErr)+' <button class="btn-sm" id="btnRetry">Coba lagi</button></p>';return;}
   const base=pool();
-  const ips=["All",...new Set(base.map(r=>r.ip))];
+  const ipCount={};base.forEach(r=>{ipCount[r.ip]=(ipCount[r.ip]||0)+1;});
+  const ips=["All",...Object.keys(ipCount).sort((a,b)=>ipCount[b]-ipCount[a]||a.localeCompare(b))];
   if(!ips.includes(ip))ip="All";
-  $("#chips").innerHTML=ips.map(i=>'<button class="chip" data-ip="'+esc(i)+'" aria-pressed="'+(i===ip)+'">'+esc(i)+'</button>').join("");
+  const LIM=8,topIps=ips.slice(0,LIM+1);
+  if(ip!=="All"&&!topIps.includes(ip))topIps.push(ip);
+  const shownIps=chipsOpen?ips:topIps,hidden=ips.length-topIps.length;
+  $("#chips").innerHTML=shownIps.map(i=>'<button class="chip" data-ip="'+esc(i)+'" aria-pressed="'+(i===ip)+'">'+esc(i)+(i==="All"?"":" "+ipCount[i])+'</button>').join("")+(hidden>0?'<button class="chip" data-more="1">'+(chipsOpen?"Fewer ▲":"More series ▾ ("+hidden+")")+'</button>':"");
   const s=q.trim().toLowerCase();
   let list=base.filter(r=>(ip==="All"||r.ip===ip)&&(!s||(r.name+" "+r.ip).toLowerCase().includes(s)));
   list.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
@@ -646,6 +651,9 @@ document.addEventListener("change",e=>{
 
 document.addEventListener("change",e=>{
   if(e.target.id==="showArch"){showArchived=e.target.checked;if(typeof page!=="undefined")page=1;render();}
+});
+document.addEventListener("click",e=>{
+  if(e.target.closest("[data-more]")){chipsOpen=!chipsOpen;render();}
 });
 let lastUid;
 sb.auth.onAuthStateChange((_event,session)=>{
