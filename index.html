@@ -80,6 +80,10 @@ a{color:var(--accent)}
 .vrow{display:grid;grid-template-columns:1fr auto auto auto auto;gap:6px;align-items:center;margin-bottom:6px}
 .vrow label.chk{margin:0}
 .mbtns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.stores{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.st{position:relative;display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;border:1px solid var(--line);color:#fff;font-weight:800;font-size:18px;text-decoration:none;overflow:hidden}
+.st img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.st.official{background:#1d1b19}.st.shopee{background:#ee4d2d}.st.lazada{background:#0f146d}.st.tokopedia{background:#42b549}.st.tiktok{background:#000}
 .buy{display:inline-block;align-self:flex-start;margin-top:4px;padding:7px 14px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-size:13.5px;font-weight:600;text-decoration:none}
 @media (max-width:520px){.row2{grid-template-columns:1fr}}
 .pager{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin-top:18px;font-size:13.5px}
@@ -170,6 +174,14 @@ a{color:var(--accent)}
     <textarea id="f_where" rows="2"></textarea>
     <label for="f_buy">Buy link (product page on the online store, starts with https://)</label>
     <input id="f_buy" type="text" placeholder="https://www.popmart.com/en-ID/...">
+    <label for="f_shopee">Shopee link</label>
+    <input id="f_shopee" type="text" placeholder="https://shopee.co.id/...">
+    <label for="f_lazada">Lazada link</label>
+    <input id="f_lazada" type="text" placeholder="https://www.lazada.co.id/...">
+    <label for="f_tokopedia">Tokopedia link</label>
+    <input id="f_tokopedia" type="text" placeholder="https://www.tokopedia.com/...">
+    <label for="f_tiktok">TikTok Shop link</label>
+    <input id="f_tiktok" type="text" placeholder="https://www.tiktok.com/...">
     <label for="f_note">Note</label>
     <textarea id="f_note" rows="2"></textarea>
     <label for="f_img">Main photo (shown when a variant has no photo of its own)</label>
@@ -225,7 +237,7 @@ function when(r){
 
 function fromRow(p){
   const vs=(p.variants||[]).slice().sort((a,b)=>a.sort-b.sort).map(v=>({id:v.slug,name:v.name,secret:v.secret,img:v.img}));
-  return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",buyUrl:p.buy_url||"",note:p.note||"",blind:p.blind,img:p.img,variants:vs.length?vs:null};
+  return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",buyUrl:p.buy_url||"",shopee:p.shopee_url||"",lazada:p.lazada_url||"",tokopedia:p.tokopedia_url||"",tiktok:p.tiktok_url||"",note:p.note||"",blind:p.blind,img:p.img,variants:vs.length?vs:null};
 }
 
 async function loadProducts(){
@@ -269,6 +281,12 @@ function acts(r){
   return r.blind?'<p class="legend">Variant list not added yet. The ♡ and ✓ on the photo apply to the whole series.</p>':"";
 }
 
+const LOGOS={official:"",shopee:"",lazada:"",tokopedia:"",tiktok:""};
+const STORES=[["buyUrl","official","Pop Mart official store","P"],["shopee","shopee","Shopee","S"],["lazada","lazada","Lazada","L"],["tokopedia","tokopedia","Tokopedia","T"],["tiktok","tiktok","TikTok Shop","♪"]];
+function storeLinks(r){
+  const a=STORES.filter(s=>/^https?:\/\//i.test(r[s[0]]||"")).map(s=>'<a class="st '+s[1]+'" href="'+esc(r[s[0]])+'" target="_blank" rel="noopener noreferrer" title="Buy on '+s[2]+'" aria-label="Buy on '+s[2]+'">'+(LOGOS[s[1]]?'<img src="'+esc(LOGOS[s[1]])+'" alt="">':'<span>'+s[3]+'</span>')+'</a>').join("");
+  return a?'<div class="stores">'+a+'</div>':"";
+}
 function buyLink(r){
   return /^https?:\/\//i.test(r.buyUrl||"")?'<a class="buy" href="'+esc(r.buyUrl)+'" target="_blank" rel="noopener noreferrer">Buy online</a>':"";
 }
@@ -277,7 +295,7 @@ function card(r){
   return '<article class="card">'+pic(r)+'<div class="top"><span class="tag t-'+r.st+'">'+LABEL[r.st]+'</span><span class="ip">'+esc(r.ip)+(isAdmin?' <button class="btn-sm" data-edit="'+esc(r.id)+'">Edit</button>':"")+'</span></div>'+
   '<h3>'+esc(r.name)+'</h3><div class="meta"><span>'+esc(r.type)+'</span><span class="price">'+price+'</span></div>'+
   '<div class="when">'+esc(when(r))+'</div><p class="where">'+esc(r.where)+'</p>'+(r.note?'<p class="note">'+esc(r.note)+'</p>':"")+
-  buyLink(r)+stats(r)+acts(r)+'</article>';
+  storeLinks(r)+stats(r)+acts(r)+'</article>';
 }
 
 function pool(){
@@ -420,6 +438,10 @@ function openForm(id){
   $("#f_where").value=r?r.where:"";
   $("#f_note").value=r?r.note:"";
   $("#f_buy").value=r?(r.buyUrl||""):"";
+  $("#f_shopee").value=r?(r.shopee||""):"";
+  $("#f_lazada").value=r?(r.lazada||""):"";
+  $("#f_tokopedia").value=r?(r.tokopedia||""):"";
+  $("#f_tiktok").value=r?(r.tiktok||""):"";
   $("#f_img").value=r?(r.img||""):"";
   $("#f_blind").checked=r?!!r.blind:false;
   $("#vbulk").value="";
@@ -475,6 +497,9 @@ async function saveProduct(){
   if(form.isNew&&R.some(r=>r.id===id)){fmsg("A product with this name already exists. Edit that one or change the name.");return;}
   const price=$("#f_price").value.trim();
   const buy=$("#f_buy").value.trim();
+  const lnk=id=>$("#"+id).value.trim()||null;
+  const bad=["f_shopee","f_lazada","f_tokopedia","f_tiktok"].find(id=>{const v=lnk(id);return v&&!/^https?:\/\//i.test(v);});
+  if(bad){fmsg("Store links must start with https://");return;}
   if(buy&&!/^https?:\/\//i.test(buy)){fmsg("Buy link must start with https://");return;}
   const row={
     id,name,
@@ -488,6 +513,10 @@ async function saveProduct(){
     where_to_buy:$("#f_where").value.trim()||null,
     note:$("#f_note").value.trim()||null,
     buy_url:buy||null,
+    shopee_url:lnk("f_shopee"),
+    lazada_url:lnk("f_lazada"),
+    tokopedia_url:lnk("f_tokopedia"),
+    tiktok_url:lnk("f_tiktok"),
     blind:$("#f_blind").checked,
     img:$("#f_img").value.trim()||null,
     updated_at:new Date().toISOString()
