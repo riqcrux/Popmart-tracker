@@ -82,6 +82,8 @@ a{color:var(--accent)}
 .mbtns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .buy{display:inline-block;align-self:flex-start;margin-top:4px;padding:7px 14px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-size:13.5px;font-weight:600;text-decoration:none}
 @media (max-width:520px){.row2{grid-template-columns:1fr}}
+.pager{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin-top:18px;font-size:13.5px}
+.pager select{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
 </style>
 </head>
 <body>
@@ -126,6 +128,7 @@ a{color:var(--accent)}
   </div>
 
   <div id="out"></div>
+  <div id="pager"></div>
 
   <section class="info">
     <h2>Where to buy in Indonesia</h2>
@@ -202,6 +205,7 @@ let tab="released",ip="All",q="";
 let wish=new Set(),owned=new Set();
 let currentUser=null,isAdmin=false,listLoaded=false,saveTimer=null,saving=false,pending=false;
 let form=null;
+let page=1,perPage=20;
 const selV={};
 
 const $=s=>document.querySelector(s);
@@ -293,8 +297,12 @@ function render(){
   if(!ips.includes(ip))ip="All";
   $("#chips").innerHTML=ips.map(i=>'<button class="chip" data-ip="'+esc(i)+'" aria-pressed="'+(i===ip)+'">'+esc(i)+'</button>').join("");
   const s=q.trim().toLowerCase();
-  const list=base.filter(r=>(ip==="All"||r.ip===ip)&&(!s||(r.name+" "+r.ip).toLowerCase().includes(s)));
+  let list=base.filter(r=>(ip==="All"||r.ip===ip)&&(!s||(r.name+" "+r.ip).toLowerCase().includes(s)));
   list.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+  const total=list.length,pages=Math.max(1,Math.ceil(total/perPage));
+  if(page>pages)page=pages;
+  renderPager(total,pages);
+  list=list.slice((page-1)*perPage,page*perPage);
   if(!list.length){
     $("#out").innerHTML='<p class="empty">'+(tab==="mine"?"Nothing here yet. Tap ♡ or ✓ on any release.":(isAdmin?"No products here yet. Use + Add product.":"No matches."))+'</p>';
     return;
@@ -307,6 +315,16 @@ function render(){
   }
 }
 
+function renderPager(total,pages){
+  const el=$("#pager");
+  if(total<=20){el.innerHTML="";return;}
+  const from=(page-1)*perPage+1,to=Math.min(total,page*perPage);
+  el.innerHTML='<div class="pager"><span>'+from+'–'+to+' of '+total+'</span>'+
+    '<button class="btn-sm" data-pg="prev"'+(page<=1?' disabled':'')+'>← Prev</button>'+
+    '<span>Page '+page+' / '+pages+'</span>'+
+    '<button class="btn-sm" data-pg="next"'+(page>=pages?' disabled':'')+'>Next →</button>'+
+    '<label>Per page <select id="perPage">'+[20,40,80].map(n=>'<option value="'+n+'"'+(n===perPage?' selected':'')+'>'+n+'</option>').join("")+'</select></label></div>';
+}
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
 
 /* ---------- wishlist saving ---------- */
@@ -533,9 +551,10 @@ document.addEventListener("click",async e=>{
   }
   if(id==="btnUpMain"){pickImg(pidNow()&&pidNow()+"/main",url=>{$("#f_img").value=url;});return;}
 
-  const t=e.target.closest("[data-tab],[data-ip],[data-sel],[data-t],[data-edit],[data-vu],[data-vup],[data-vd]");
+  const t=e.target.closest("[data-tab],[data-ip],[data-sel],[data-t],[data-edit],[data-vu],[data-vup],[data-vd],[data-pg]");
   if(!t)return;
   const d=t.dataset;
+  if(d.pg){page+=d.pg==="next"?1:-1;render();window.scrollTo({top:0,behavior:"smooth"});return;}
   if(d.vu!==undefined){
     const v=form.vars[d.vu];
     pickImg(pidNow()&&pidNow()+"/"+(v.slug||slugify(v.name)||"variant"),url=>{v.img=url;renderVars();});
@@ -557,8 +576,8 @@ document.addEventListener("click",async e=>{
     scheduleSave();
     return;
   }
-  if(d.tab){tab=d.tab;ip="All";render();}
-  else if(d.ip){ip=d.ip;render();}
+  if(d.tab){tab=d.tab;ip="All";page=1;render();}
+  else if(d.ip){ip=d.ip;page=1;render();}
 });
 
 $("#vlist").addEventListener("input",e=>{
@@ -569,7 +588,10 @@ $("#vlist").addEventListener("change",e=>{
   const i=e.target.dataset.vs;
   if(i!==undefined)form.vars[i].secret=e.target.checked;
 });
-$("#q").addEventListener("input",e=>{q=e.target.value;render();});
+$("#q").addEventListener("input",e=>{q=e.target.value;page=1;render();});
+document.addEventListener("change",e=>{
+  if(e.target.id==="perPage"){perPage=Number(e.target.value);page=1;render();}
+});
 
 let lastUid;
 sb.auth.onAuthStateChange((_event,session)=>{
