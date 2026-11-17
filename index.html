@@ -118,6 +118,7 @@ a{color:var(--accent)}
     <strong>Admin</strong>
     <button class="btn-sm primary" id="btnAdd">+ Add product</button>
     <span class="fine" style="margin:0">Tap Edit on any card to change it.</span>
+    <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="showArch"> Show archived</label>
   </div>
 
   <div class="tabs" role="tablist">
@@ -187,6 +188,7 @@ a{color:var(--accent)}
     <label for="f_img">Main photo (shown when a variant has no photo of its own)</label>
     <div class="rowimg"><input id="f_img" type="text" placeholder="https://… or press Upload"><button type="button" class="btn-sm" id="btnUpMain">Upload</button></div>
     <label class="chk"><input type="checkbox" id="f_blind"> Blind box, variant list not added yet</label>
+    <label class="chk"><input type="checkbox" id="f_archived"> Archived: not sold in Indonesia now (hidden from the lists)</label>
 
     <h2 style="margin-top:18px">Variants</h2>
     <div id="vlist"></div>
@@ -217,6 +219,7 @@ let tab="released",ip="All",q="";
 let wish=new Set(),owned=new Set();
 let currentUser=null,isAdmin=false,listLoaded=false,saveTimer=null,saving=false,pending=false;
 let form=null;
+let showArchived=false;
 let counts={};
 let page=1,perPage=20;
 const selV={};
@@ -237,7 +240,7 @@ function when(r){
 
 function fromRow(p){
   const vs=(p.variants||[]).slice().sort((a,b)=>a.sort-b.sort).map(v=>({id:v.slug,name:v.name,secret:v.secret,img:v.img}));
-  return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",buyUrl:p.buy_url||"",shopee:p.shopee_url||"",lazada:p.lazada_url||"",tokopedia:p.tokopedia_url||"",tiktok:p.tiktok_url||"",note:p.note||"",blind:p.blind,img:p.img,variants:vs.length?vs:null};
+  return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",buyUrl:p.buy_url||"",shopee:p.shopee_url||"",lazada:p.lazada_url||"",tokopedia:p.tokopedia_url||"",tiktok:p.tiktok_url||"",note:p.note||"",blind:p.blind,archived:!!p.archived,img:p.img,variants:vs.length?vs:null};
 }
 
 async function loadProducts(){
@@ -292,15 +295,16 @@ function buyLink(r){
 }
 function card(r){
   const price=r.priceNote?esc(r.priceNote):(r.price!=null?rp(r.price):"Price not announced");
-  return '<article class="card">'+pic(r)+'<div class="top"><span class="tag t-'+r.st+'">'+LABEL[r.st]+'</span><span class="ip">'+esc(r.ip)+(isAdmin?' <button class="btn-sm" data-edit="'+esc(r.id)+'">Edit</button>':"")+'</span></div>'+
+  return '<article class="card">'+pic(r)+'<div class="top"><span class="tag t-'+r.st+'">'+LABEL[r.st]+(r.archived?' · Not sold now':'')+'</span><span class="ip">'+esc(r.ip)+(isAdmin?' <button class="btn-sm" data-edit="'+esc(r.id)+'">Edit</button>':"")+'</span></div>'+
   '<h3>'+esc(r.name)+'</h3><div class="meta"><span>'+esc(r.type)+'</span><span class="price">'+price+'</span></div>'+
   '<div class="when">'+esc(when(r))+'</div><p class="where">'+esc(r.where)+'</p>'+(r.note?'<p class="note">'+esc(r.note)+'</p>':"")+
   storeLinks(r)+stats(r)+acts(r)+'</article>';
 }
 
+const vis=r=>!r.archived||(isAdmin&&showArchived);
 function pool(){
-  if(tab==="released")return R.filter(r=>r.st==="released");
-  if(tab==="upcoming")return R.filter(r=>r.st!=="released");
+  if(tab==="released")return R.filter(r=>r.st==="released"&&vis(r));
+  if(tab==="upcoming")return R.filter(r=>r.st!=="released"&&vis(r));
   return R.filter(mark);
 }
 
@@ -444,6 +448,7 @@ function openForm(id){
   $("#f_tiktok").value=r?(r.tiktok||""):"";
   $("#f_img").value=r?(r.img||""):"";
   $("#f_blind").checked=r?!!r.blind:false;
+  $("#f_archived").checked=r?!!r.archived:false;
   $("#vbulk").value="";
   $("#btnDelP").style.display=r?"":"none";
   fmsg("");
@@ -518,6 +523,7 @@ async function saveProduct(){
     tokopedia_url:lnk("f_tokopedia"),
     tiktok_url:lnk("f_tiktok"),
     blind:$("#f_blind").checked,
+    archived:$("#f_archived").checked,
     img:$("#f_img").value.trim()||null,
     updated_at:new Date().toISOString()
   };
@@ -638,6 +644,9 @@ document.addEventListener("change",e=>{
   if(e.target.id==="perPage"){perPage=Number(e.target.value);page=1;render();}
 });
 
+document.addEventListener("change",e=>{
+  if(e.target.id==="showArch"){showArchived=e.target.checked;if(typeof page!=="undefined")page=1;render();}
+});
 let lastUid;
 sb.auth.onAuthStateChange((_event,session)=>{
   const u=session?session.user:null,uid=u?u.id:null;
