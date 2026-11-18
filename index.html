@@ -80,7 +80,7 @@ a{color:var(--accent)}
 .vrow{display:grid;grid-template-columns:1fr auto auto auto auto;gap:6px;align-items:center;margin-bottom:6px}
 .vrow label.chk{margin:0}
 .mbtns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
-#imgPrev{width:200px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--mute);margin-top:6px}
+#imgPrev{cursor:grab;touch-action:none;user-select:none;width:200px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--mute);margin-top:6px}
 .sum{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
 .sum>div{flex:1 1 150px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 .sum span{display:block;font-size:12.5px;color:var(--mute)}
@@ -198,6 +198,8 @@ a{color:var(--accent)}
       <div><label for="f_fit">Photo fit</label><select id="f_fit"><option value="cover">Fill the frame (may crop)</option><option value="contain">Show the whole photo</option></select></div>
     </div>
     <div id="imgPrev"></div>
+    <div class="rowimg" style="align-items:center;margin-top:6px"><label for="f_zoom" style="margin:0;white-space:nowrap">Zoom</label><input id="f_zoom" type="range" min="100" max="300" step="5" value="100" style="flex:1"><button type="button" class="btn-sm" id="btnPosReset">Center</button></div>
+    <p class="fine" style="margin:4px 0 0">Drag the photo in the preview to move it. Zoom and position apply to all photos of this product.</p>
     <label class="chk"><input type="checkbox" id="f_blind"> Blind box, variant list not added yet</label>
     <label class="chk"><input type="checkbox" id="f_archived"> Archived: not sold in Indonesia now (hidden from the lists)</label>
 
@@ -230,6 +232,7 @@ let tab="released",ip="All",q="";
 let wish=new Set(),owned=new Set();
 let currentUser=null,isAdmin=false,listLoaded=false,saveTimer=null,saving=false,pending=false;
 let form=null;
+let pos={x:50,y:50};
 let chipsOpen=false;
 let showArchived=false;
 let counts={};
@@ -250,9 +253,10 @@ function when(r){
   return r.dateNote||(r.date?fmtDate(r.date):"");
 }
 
+const nv=(v,a,b,d)=>{if(v==null||v==="")return d;v=Number(v);return isNaN(v)?d:Math.min(b,Math.max(a,v));};
 function fromRow(p){
   const vs=(p.variants||[]).slice().sort((a,b)=>a.sort-b.sort).map(v=>({id:v.slug,name:v.name,secret:v.secret,img:v.img}));
-  return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",buyUrl:p.buy_url||"",shopee:p.shopee_url||"",lazada:p.lazada_url||"",tokopedia:p.tokopedia_url||"",tiktok:p.tiktok_url||"",note:p.note||"",blind:p.blind,archived:!!p.archived,img:p.img,fit:p.img_fit==="contain"?"contain":"cover",ratio:["4/3","1/1","3/4"].includes(p.img_ratio)?p.img_ratio:"4/3",variants:vs.length?vs:null};
+  return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",buyUrl:p.buy_url||"",shopee:p.shopee_url||"",lazada:p.lazada_url||"",tokopedia:p.tokopedia_url||"",tiktok:p.tiktok_url||"",note:p.note||"",blind:p.blind,archived:!!p.archived,img:p.img,px:nv(p.img_x,0,100,50),py:nv(p.img_y,0,100,50),zoom:nv(p.img_zoom,100,300,100),fit:p.img_fit==="contain"?"contain":"cover",ratio:["4/3","1/1","3/4"].includes(p.img_ratio)?p.img_ratio:"4/3",variants:vs.length?vs:null};
 }
 
 async function loadProducts(){
@@ -279,7 +283,7 @@ function pic(r){
   const src=(v&&v.img)||r.img;
   return '<div class="pic" style="aspect-ratio:'+r.ratio+';background:linear-gradient(135deg,hsl('+h+' 65% 58%),hsl('+((h+50)%360)+' 65% 42%))">'+
     (src?'':'<span>'+esc(r.ip)+'</span>')+
-    (src?'<img src="'+esc(src)+'" alt="'+esc(r.name+(v?" - "+v.name:""))+'" loading="lazy" style="object-fit:'+r.fit+'" onerror="this.remove()">':'')+
+    (src?'<img src="'+esc(src)+'" alt="'+esc(r.name+(v?" - "+v.name:""))+'" loading="lazy" style="object-fit:'+r.fit+';object-position:'+r.px+'% '+r.py+'%;transform:scale('+(r.zoom/100)+');transform-origin:'+r.px+'% '+r.py+'%" onerror="this.remove()">':'')+
     (v?'<span class="lbl">'+esc(v.name)+(v.secret?" ★":"")+'</span>':'')+
     '<div class="fab"><button class="ic'+(wish.has(k)?" w":"")+'" data-t="w" data-k="'+esc(k)+'" aria-label="Wishlist">'+(wish.has(k)?"♥":"♡")+'</button><button class="ic'+(owned.has(k)?" o":"")+'" data-t="o" data-k="'+esc(k)+'" aria-label="Owned">✓</button></div></div>';
 }
@@ -482,6 +486,8 @@ function openForm(id){
   $("#f_img").value=r?(r.img||""):"";
   $("#f_ratio").value=r?r.ratio:"4/3";
   $("#f_fit").value=r?r.fit:"cover";
+  pos.x=r?r.px:50;pos.y=r?r.py:50;
+  $("#f_zoom").value=r?r.zoom:100;
   $("#f_blind").checked=r?!!r.blind:false;
   $("#f_archived").checked=r?!!r.archived:false;
   $("#vbulk").value="";
@@ -507,7 +513,7 @@ function updatePrev(){
   const src=$("#f_img").value.trim()||((form.vars.find(v=>v.img)||{}).img||"");
   const el=$("#imgPrev");
   el.style.aspectRatio=$("#f_ratio").value;
-  el.innerHTML=src?'<img src="'+esc(src)+'" alt="" style="width:100%;height:100%;object-fit:'+$("#f_fit").value+'">':'<span>Upload a photo to preview</span>';
+  el.innerHTML=src?'<img src="'+esc(src)+'" alt="" style="width:100%;height:100%;object-fit:'+$("#f_fit").value+';object-position:'+pos.x+'% '+pos.y+'%;transform:scale('+($("#f_zoom").value/100)+');transform-origin:'+pos.x+'% '+pos.y+'%;pointer-events:none">':'<span>Upload a photo to preview</span>';
 }
 function pidNow(){return form.isNew?slugify($("#f_name").value):form.id;}
 
@@ -570,6 +576,9 @@ async function saveProduct(){
     img:$("#f_img").value.trim()||null,
     img_fit:$("#f_fit").value,
     img_ratio:$("#f_ratio").value,
+    img_x:Math.round(pos.x),
+    img_y:Math.round(pos.y),
+    img_zoom:Number($("#f_zoom").value),
     updated_at:new Date().toISOString()
   };
   const used=new Set();
@@ -696,6 +705,29 @@ document.addEventListener("click",e=>{
   if(e.target.closest("[data-more]")){chipsOpen=!chipsOpen;render();}
 });
 ["f_ratio","f_fit","f_img"].forEach(id=>$("#"+id).addEventListener("input",updatePrev));
+(function(){
+  const el=$("#imgPrev");let d=null;
+  const apply=()=>{
+    const im=el.querySelector("img");
+    if(!im)return;
+    im.style.objectPosition=pos.x+"% "+pos.y+"%";
+    im.style.transformOrigin=pos.x+"% "+pos.y+"%";
+    im.style.transform="scale("+($("#f_zoom").value/100)+")";
+  };
+  el.addEventListener("pointerdown",e=>{d={x:e.clientX,y:e.clientY,px:pos.x,py:pos.y};el.setPointerCapture(e.pointerId);});
+  el.addEventListener("pointermove",e=>{
+    if(!d)return;
+    const r=el.getBoundingClientRect(),z=$("#f_zoom").value/100;
+    pos.x=Math.min(100,Math.max(0,d.px-(e.clientX-d.x)/r.width*100/z));
+    pos.y=Math.min(100,Math.max(0,d.py-(e.clientY-d.y)/r.height*100/z));
+    apply();
+  });
+  const end=()=>{d=null;};
+  el.addEventListener("pointerup",end);
+  el.addEventListener("pointercancel",end);
+  $("#f_zoom").addEventListener("input",apply);
+  $("#btnPosReset").addEventListener("click",()=>{pos.x=50;pos.y=50;$("#f_zoom").value=100;apply();});
+})();
 let lastUid;
 sb.auth.onAuthStateChange((_event,session)=>{
   const u=session?session.user:null,uid=u?u.id:null;
