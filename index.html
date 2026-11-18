@@ -80,6 +80,11 @@ a{color:var(--accent)}
 .vrow{display:grid;grid-template-columns:1fr auto auto auto auto;gap:6px;align-items:center;margin-bottom:6px}
 .vrow label.chk{margin:0}
 .mbtns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.sum{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.sum>div{flex:1 1 150px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.sum span{display:block;font-size:12.5px;color:var(--mute)}
+.sum b{font-size:18px}
+.sum small{display:block;font-size:12px;color:var(--mute)}
 .stores{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .st{position:relative;display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;border:1px solid var(--line);color:#fff;font-weight:800;font-size:18px;text-decoration:none;overflow:hidden}
 .st img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -327,6 +332,7 @@ function render(){
   const s=q.trim().toLowerCase();
   let list=base.filter(r=>(ip==="All"||r.ip===ip)&&(!s||(r.name+" "+r.ip).toLowerCase().includes(s)));
   list.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+  const filteredAll=list;
   const total=list.length,pages=Math.max(1,Math.ceil(total/perPage));
   if(page>pages)page=pages;
   renderPager(total,pages);
@@ -337,7 +343,7 @@ function render(){
   }
   if(tab==="mine"){
     const w=list.filter(anyW),o=list.filter(r=>!anyW(r));
-    $("#out").innerHTML=(currentUser?"":'<p class="fine">Daftar / Login di atas supaya wishlist kamu tersimpan permanen dan tidak hilang saat browser ditutup.</p>')+(w.length?'<h2>Wishlist</h2><div class="grid">'+w.map(card).join("")+'</div>':"")+(o.length?'<h2>Owned</h2><div class="grid">'+o.map(card).join("")+'</div>':"");
+    $("#out").innerHTML=summary(filteredAll)+(currentUser?"":'<p class="fine">Daftar / Login di atas supaya wishlist kamu tersimpan permanen dan tidak hilang saat browser ditutup.</p>')+(w.length?'<h2>Wishlist</h2><div class="grid">'+w.map(card).join("")+'</div>':"")+(o.length?'<h2>Owned</h2><div class="grid">'+o.map(card).join("")+'</div>':"");
   }else{
     $("#out").innerHTML='<div class="grid">'+list.map(card).join("")+'</div>';
   }
@@ -367,6 +373,22 @@ function stats(r){
   if(p&&(p.w+p.o))s+='♥ '+p.w+' want · ✓ '+p.o+' own';
   if(c&&(c.w+c.o))s+=(s?'<br>':'')+esc(v.name)+': ♥ '+c.w+' · ✓ '+c.o;
   return s?'<p class="legend">'+s+'</p>':"";
+}
+function summary(arr){
+  let own=0,want=0,nOwn=0,nWant=0,noPrice=0;
+  (arr||R).forEach(r=>{
+    (r.variants?r.variants.map(v=>vkey(r,v)):[r.id]).forEach(k=>{
+      const o=owned.has(k),w=wish.has(k)&&!o;
+      if(!o&&!w)return;
+      if(w&&r.archived)return;
+      if(r.price==null){noPrice++;return;}
+      if(o){own+=r.price;nOwn++;}else{want+=r.price;nWant++;}
+    });
+  });
+  if(!(nOwn||nWant||noPrice))return "";
+  const box=(t,v,n)=>'<div><span>'+t+'</span><b>'+rp(v)+'</b><small>'+n+' item'+(n===1?"":"s")+'</small></div>';
+  const f=(ip!=="All"?esc(ip):"")+(q.trim()?(ip!=="All"?" + ":"")+"“"+esc(q.trim())+"”":"");
+  return (f?'<p class="fine" style="margin:0 0 6px">Totals for the current filter: <b>'+f+'</b></p>':"")+'<div class="sum">'+box("Owned (estimate)",own,nOwn)+box("Wishlist (estimate)",want,nWant)+box("Total",own+want,nOwn+nWant)+'</div><p class="fine" style="margin:-6px 0 14px">Estimated from the store prices on this page. Items without a price'+(noPrice?" ("+noPrice+")":"")+' are not counted. Wishlist items that are no longer sold are left out.</p>';
 }
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
 
