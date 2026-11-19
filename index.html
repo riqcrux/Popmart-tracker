@@ -77,7 +77,7 @@ a{color:var(--accent)}
 .sheet input[type=text],.sheet input[type=number],.sheet input[type=date],.sheet select,.sheet textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .rowimg{display:flex;gap:8px}
-.vrow{display:grid;grid-template-columns:1fr auto auto auto auto;gap:6px;align-items:center;margin-bottom:6px}
+.vrow{display:grid;grid-template-columns:1fr auto auto auto auto auto;gap:6px;align-items:center;margin-bottom:6px}
 .vrow label.chk{margin:0}
 .mbtns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 #imgPrev{cursor:grab;touch-action:none;user-select:none;width:200px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--mute);margin-top:6px}
@@ -197,6 +197,7 @@ a{color:var(--accent)}
       <div><label for="f_ratio">Photo frame shape</label><select id="f_ratio"><option value="4/3">Landscape (4:3)</option><option value="1/1">Square (1:1)</option><option value="3/4">Portrait (3:4)</option></select></div>
       <div><label for="f_fit">Photo fit</label><select id="f_fit"><option value="cover">Fill the frame (may crop)</option><option value="contain">Show the whole photo</option></select></div>
     </div>
+    <div class="rowimg" style="align-items:center;margin-top:6px"><span id="selLbl" class="fine" style="margin:0">Adjusting: <b>main photo</b></span><button type="button" class="btn-sm" id="btnSelMain">Main photo</button></div>
     <div id="imgPrev"></div>
     <div class="rowimg" style="align-items:center;margin-top:6px"><label for="f_zoom" style="margin:0;white-space:nowrap">Zoom</label><input id="f_zoom" type="range" min="100" max="300" step="5" value="100" style="flex:1"><button type="button" class="btn-sm" id="btnPosReset">Center</button></div>
     <p class="fine" style="margin:4px 0 0">Drag the photo in the preview to move it. Zoom and position apply to all photos of this product.</p>
@@ -232,7 +233,7 @@ let tab="released",ip="All",q="";
 let wish=new Set(),owned=new Set();
 let currentUser=null,isAdmin=false,listLoaded=false,saveTimer=null,saving=false,pending=false;
 let form=null;
-let pos={x:50,y:50};
+let pos={x:50,y:50},selObj=null,loaded=null,mainPos={x:50,y:50,z:100};
 let chipsOpen=false;
 let showArchived=false;
 let counts={};
@@ -255,7 +256,7 @@ function when(r){
 
 const nv=(v,a,b,d)=>{if(v==null||v==="")return d;v=Number(v);return isNaN(v)?d:Math.min(b,Math.max(a,v));};
 function fromRow(p){
-  const vs=(p.variants||[]).slice().sort((a,b)=>a.sort-b.sort).map(v=>({id:v.slug,name:v.name,secret:v.secret,img:v.img}));
+  const vs=(p.variants||[]).slice().sort((a,b)=>a.sort-b.sort).map(v=>({id:v.slug,name:v.name,secret:v.secret,img:v.img,px:v.img_x==null?null:nv(v.img_x,0,100,50),py:v.img_y==null?null:nv(v.img_y,0,100,50),zoom:v.img_zoom==null?null:nv(v.img_zoom,100,300,100)}));
   return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",buyUrl:p.buy_url||"",shopee:p.shopee_url||"",lazada:p.lazada_url||"",tokopedia:p.tokopedia_url||"",tiktok:p.tiktok_url||"",note:p.note||"",blind:p.blind,archived:!!p.archived,img:p.img,px:nv(p.img_x,0,100,50),py:nv(p.img_y,0,100,50),zoom:nv(p.img_zoom,100,300,100),fit:p.img_fit==="contain"?"contain":"cover",ratio:["4/3","1/1","3/4"].includes(p.img_ratio)?p.img_ratio:"4/3",variants:vs.length?vs:null};
 }
 
@@ -281,9 +282,10 @@ function mark(r){return anyW(r)||owned.has(r.id)||[...owned].some(k=>k.startsWit
 function pic(r){
   const v=curV(r),k=v?vkey(r,v):r.id,h=(hue(r.ip)+(v?r.variants.indexOf(v)*14:0))%360;
   const src=(v&&v.img)||r.img;
+  const px=v&&v.px!=null?v.px:r.px,py=v&&v.py!=null?v.py:r.py,zm=v&&v.zoom!=null?v.zoom:r.zoom;
   return '<div class="pic" style="aspect-ratio:'+r.ratio+';background:linear-gradient(135deg,hsl('+h+' 65% 58%),hsl('+((h+50)%360)+' 65% 42%))">'+
     (src?'':'<span>'+esc(r.ip)+'</span>')+
-    (src?'<img src="'+esc(src)+'" alt="'+esc(r.name+(v?" - "+v.name:""))+'" loading="lazy" style="object-fit:'+r.fit+';object-position:'+r.px+'% '+r.py+'%;transform:scale('+(r.zoom/100)+');transform-origin:'+r.px+'% '+r.py+'%" onerror="this.remove()">':'')+
+    (src?'<img src="'+esc(src)+'" alt="'+esc(r.name+(v?" - "+v.name:""))+'" loading="lazy" style="object-fit:'+r.fit+';object-position:'+px+'% '+py+'%;transform:scale('+(zm/100)+');transform-origin:'+px+'% '+py+'%" onerror="this.remove()">':'')+
     (v?'<span class="lbl">'+esc(v.name)+(v.secret?" ★":"")+'</span>':'')+
     '<div class="fab"><button class="ic'+(wish.has(k)?" w":"")+'" data-t="w" data-k="'+esc(k)+'" aria-label="Wishlist">'+(wish.has(k)?"♥":"♡")+'</button><button class="ic'+(owned.has(k)?" o":"")+'" data-t="o" data-k="'+esc(k)+'" aria-label="Owned">✓</button></div></div>';
 }
@@ -465,7 +467,7 @@ function fillTypes(sel){
 
 function openForm(id){
   const r=id?R.find(x=>x.id===id):null;
-  form={isNew:!r,id:r?r.id:null,vars:r&&r.variants?r.variants.map(v=>({slug:v.id,name:v.name,secret:!!v.secret,img:v.img||""})):[]};
+  form={isNew:!r,id:r?r.id:null,vars:r&&r.variants?r.variants.map(v=>({slug:v.id,name:v.name,secret:!!v.secret,img:v.img||"",x:v.px,y:v.py,zoom:v.zoom})):[]};
   $("#pTitle").textContent=r?"Edit product":"Add product";
   $("#ipList").innerHTML=[...new Set(R.map(x=>x.ip))].map(i=>'<option value="'+esc(i)+'">').join("");
   $("#f_name").value=r?r.name:"";
@@ -488,6 +490,8 @@ function openForm(id){
   $("#f_fit").value=r?r.fit:"cover";
   pos.x=r?r.px:50;pos.y=r?r.py:50;
   $("#f_zoom").value=r?r.zoom:100;
+  mainPos={x:pos.x,y:pos.y,z:r?r.zoom:100};selObj=null;loaded={x:pos.x,y:pos.y,z:mainPos.z};
+  $("#selLbl").innerHTML='Adjusting: <b>main photo</b>';
   $("#f_blind").checked=r?!!r.blind:false;
   $("#f_archived").checked=r?!!r.archived:false;
   $("#vbulk").value="";
@@ -504,16 +508,34 @@ function renderVars(){
     '<div class="vrow"><input type="text" value="'+esc(v.name)+'" data-vn="'+i+'" placeholder="Variant name">'+
     '<label class="chk"><input type="checkbox" data-vs="'+i+'"'+(v.secret?" checked":"")+'> ★</label>'+
     '<button type="button" class="btn-sm" data-vu="'+i+'">'+(v.img?"Photo ✓":"Photo")+'</button>'+
+    '<button type="button" class="btn-sm" data-va="'+i+'">Adjust</button>'+
     '<button type="button" class="btn-sm" data-vup="'+i+'" aria-label="Move up">↑</button>'+
     '<button type="button" class="btn-sm danger" data-vd="'+i+'" aria-label="Remove">✕</button></div>').join("");
 }
 
 function updatePrev(){
   if(!form)return;
-  const src=$("#f_img").value.trim()||((form.vars.find(v=>v.img)||{}).img||"");
+  const src=(selObj&&selObj.img)||$("#f_img").value.trim()||((form.vars.find(v=>v.img)||{}).img||"");
   const el=$("#imgPrev");
   el.style.aspectRatio=$("#f_ratio").value;
   el.innerHTML=src?'<img src="'+esc(src)+'" alt="" style="width:100%;height:100%;object-fit:'+$("#f_fit").value+';object-position:'+pos.x+'% '+pos.y+'%;transform:scale('+($("#f_zoom").value/100)+');transform-origin:'+pos.x+'% '+pos.y+'%;pointer-events:none">':'<span>Upload a photo to preview</span>';
+}
+function commitSel(){
+  if(!form||!loaded)return;
+  const c={x:pos.x,y:pos.y,z:Number($("#f_zoom").value)};
+  if(c.x===loaded.x&&c.y===loaded.y&&c.z===loaded.z)return;
+  if(selObj){selObj.x=c.x;selObj.y=c.y;selObj.zoom=c.z;}
+  else mainPos=c;
+  loaded=c;
+}
+function selectObj(v){
+  commitSel();
+  selObj=v||null;
+  const b=selObj?{x:selObj.x==null?mainPos.x:selObj.x,y:selObj.y==null?mainPos.y:selObj.y,z:selObj.zoom==null?mainPos.z:selObj.zoom}:mainPos;
+  pos.x=b.x;pos.y=b.y;$("#f_zoom").value=b.z;
+  loaded={x:b.x,y:b.y,z:b.z};
+  $("#selLbl").innerHTML=selObj?'Adjusting: <b>'+esc(selObj.name||"this variant")+'</b>':'Adjusting: <b>main photo</b>';
+  updatePrev();
 }
 function pidNow(){return form.isNew?slugify($("#f_name").value):form.id;}
 
@@ -544,6 +566,7 @@ function pickImg(base,done){
 }
 
 async function saveProduct(){
+  commitSel();
   const name=$("#f_name").value.trim();
   if(!name){fmsg("Name is required.");return;}
   const id=pidNow();
@@ -576,9 +599,9 @@ async function saveProduct(){
     img:$("#f_img").value.trim()||null,
     img_fit:$("#f_fit").value,
     img_ratio:$("#f_ratio").value,
-    img_x:Math.round(pos.x),
-    img_y:Math.round(pos.y),
-    img_zoom:Number($("#f_zoom").value),
+    img_x:Math.round(mainPos.x),
+    img_y:Math.round(mainPos.y),
+    img_zoom:Math.round(mainPos.z),
     updated_at:new Date().toISOString()
   };
   const used=new Set();
@@ -587,7 +610,7 @@ async function saveProduct(){
     let s=base,n=2;
     while(used.has(s)){s=base+"-"+n++;}
     used.add(s);v.slug=s;
-    return {product_id:id,slug:s,name:v.name.trim(),secret:!!v.secret,img:v.img||null,sort:i+1};
+    return {product_id:id,slug:s,name:v.name.trim(),secret:!!v.secret,img:v.img||null,img_x:v.x==null?null:Math.round(v.x),img_y:v.y==null?null:Math.round(v.y),img_zoom:v.zoom==null?null:Math.round(v.zoom),sort:i+1};
   });
   const btn=$("#btnSaveP");btn.disabled=true;fmsg("Saving…");
   try{
@@ -662,7 +685,7 @@ document.addEventListener("click",async e=>{
   if(d.pg){page+=d.pg==="next"?1:-1;render();window.scrollTo({top:0,behavior:"smooth"});return;}
   if(d.vu!==undefined){
     const v=form.vars[d.vu];
-    pickImg(pidNow()&&pidNow()+"/"+(v.slug||slugify(v.name)||"variant"),url=>{v.img=url;renderVars();});
+    pickImg(pidNow()&&pidNow()+"/"+(v.slug||slugify(v.name)||"variant"),url=>{v.img=url;renderVars();selectObj(v);});
     return;
   }
   if(d.vup!==undefined){
@@ -728,6 +751,11 @@ document.addEventListener("click",e=>{
   $("#f_zoom").addEventListener("input",apply);
   $("#btnPosReset").addEventListener("click",()=>{pos.x=50;pos.y=50;$("#f_zoom").value=100;apply();});
 })();
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-va]");
+  if(b&&form){selectObj(form.vars[Number(b.dataset.va)]);}
+  else if(e.target.id==="btnSelMain"){selectObj(null);}
+});
 let lastUid;
 sb.auth.onAuthStateChange((_event,session)=>{
   const u=session?session.user:null,uid=u?u.id:null;
