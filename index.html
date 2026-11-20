@@ -80,6 +80,19 @@ a{color:var(--accent)}
 .vrow{display:grid;grid-template-columns:1fr auto auto auto auto auto;gap:6px;align-items:center;margin-bottom:6px}
 .vrow label.chk{margin:0}
 .mbtns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.tag.tn{background:var(--accent);color:var(--accent-ink);margin-left:6px;margin-right:auto}
+.tag.tn-added{background:var(--mute);color:var(--card)}
+.tag.tn-updated{background:var(--ok);color:#fff}
+.ctools{display:flex;gap:8px;margin-top:6px}
+.upd{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin-bottom:14px}
+.uh{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600;margin-bottom:4px}
+.ur{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--line)}
+.utag{flex:none;width:76px;text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.04em;padding:2px 0;border-radius:99px;color:#fff;margin-top:2px;background:var(--accent)}
+.utag.ua{background:var(--mute)}.utag.uu{background:var(--ok)}
+.ulink{appearance:none;background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--ink);cursor:pointer;text-align:left}
+.ulink:hover{text-decoration:underline}
+.usub{font-size:12.5px;color:var(--mute)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:9px 16px;border-radius:99px;font-size:13px;z-index:60}
 #imgPrev{cursor:grab;touch-action:none;user-select:none;width:200px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--mute);margin-top:6px}
 .sum{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
 .sum>div{flex:1 1 150px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
@@ -126,6 +139,8 @@ a{color:var(--accent)}
     <span class="fine" style="margin:0">Tap Edit on any card to change it.</span>
     <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="showArch"> Show archived</label>
   </div>
+
+  <div id="updates"></div>
 
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" data-tab="released" aria-selected="true">Released</button>
@@ -202,6 +217,7 @@ a{color:var(--accent)}
     <div class="rowimg" style="align-items:center;margin-top:6px"><label for="f_zoom" style="margin:0;white-space:nowrap">Zoom</label><input id="f_zoom" type="range" min="100" max="300" step="5" value="100" style="flex:1"><button type="button" class="btn-sm" id="btnPosReset">Center</button></div>
     <p class="fine" style="margin:4px 0 0">Drag the photo in the preview to move it. Zoom and position apply to all photos of this product.</p>
     <label class="chk"><input type="checkbox" id="f_blind"> Blind box, variant list not added yet</label>
+    <label class="chk"><input type="checkbox" id="f_notify"> Show in Latest updates (untick for back-catalog products)</label>
     <label class="chk"><input type="checkbox" id="f_archived"> Archived: not sold in Indonesia now (hidden from the lists)</label>
 
     <h2 style="margin-top:18px">Variants</h2>
@@ -257,7 +273,7 @@ function when(r){
 const nv=(v,a,b,d)=>{if(v==null||v==="")return d;v=Number(v);return isNaN(v)?d:Math.min(b,Math.max(a,v));};
 function fromRow(p){
   const vs=(p.variants||[]).slice().sort((a,b)=>a.sort-b.sort).map(v=>({id:v.slug,name:v.name,secret:v.secret,img:v.img,px:v.img_x==null?null:nv(v.img_x,0,100,50),py:v.img_y==null?null:nv(v.img_y,0,100,50),zoom:v.img_zoom==null?null:nv(v.img_zoom,100,300,100)}));
-  return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",buyUrl:p.buy_url||"",shopee:p.shopee_url||"",lazada:p.lazada_url||"",tokopedia:p.tokopedia_url||"",tiktok:p.tiktok_url||"",note:p.note||"",blind:p.blind,archived:!!p.archived,img:p.img,px:nv(p.img_x,0,100,50),py:nv(p.img_y,0,100,50),zoom:nv(p.img_zoom,100,300,100),fit:p.img_fit==="contain"?"contain":"cover",ratio:["4/3","1/1","3/4"].includes(p.img_ratio)?p.img_ratio:"4/3",variants:vs.length?vs:null};
+  return {id:p.id,st:p.status,name:p.name,ip:p.ip,type:p.type,price:p.price,priceNote:p.price_note,date:p.release_date,dateNote:p.date_note||"",where:p.where_to_buy||"",created:p.created_at,changedAt:p.changed_at,changeNote:p.change_note||"",notify:p.notify!==false,buyUrl:p.buy_url||"",shopee:p.shopee_url||"",lazada:p.lazada_url||"",tokopedia:p.tokopedia_url||"",tiktok:p.tiktok_url||"",note:p.note||"",blind:p.blind,archived:!!p.archived,img:p.img,px:nv(p.img_x,0,100,50),py:nv(p.img_y,0,100,50),zoom:nv(p.img_zoom,100,300,100),fit:p.img_fit==="contain"?"contain":"cover",ratio:["4/3","1/1","3/4"].includes(p.img_ratio)?p.img_ratio:"4/3",variants:vs.length?vs:null};
 }
 
 async function loadProducts(){
@@ -266,6 +282,7 @@ async function loadProducts(){
   if(error){loadErr=error.message;R=[];}
   else{R=data.map(fromRow);loadCounts();}
   loading=false;
+  openFromHash();
   render();
 }
 
@@ -313,10 +330,10 @@ function buyLink(r){
 }
 function card(r){
   const price=r.priceNote?esc(r.priceNote):(r.price!=null?rp(r.price):"Price not announced");
-  return '<article class="card">'+pic(r)+'<div class="top"><span class="tag t-'+r.st+'">'+LABEL[r.st]+(r.archived?' · Not sold now':'')+'</span><span class="ip">'+esc(r.ip)+(isAdmin?' <button class="btn-sm" data-edit="'+esc(r.id)+'">Edit</button>':"")+'</span></div>'+
+  return '<article class="card">'+pic(r)+'<div class="top"><span class="tag t-'+r.st+'">'+LABEL[r.st]+(r.archived?' · Not sold now':'')+'</span>'+badge(r)+'<span class="ip">'+esc(r.ip)+(isAdmin?' <button class="btn-sm" data-edit="'+esc(r.id)+'">Edit</button>':"")+'</span></div>'+
   '<h3>'+esc(r.name)+'</h3><div class="meta"><span>'+esc(r.type)+'</span><span class="price">'+price+'</span></div>'+
   '<div class="when">'+esc(when(r))+'</div><p class="where">'+esc(r.where)+'</p>'+(r.note?'<p class="note">'+esc(r.note)+'</p>':"")+
-  storeLinks(r)+stats(r)+acts(r)+'</article>';
+  storeLinks(r)+stats(r)+acts(r)+cardTools(r)+'</article>';
 }
 
 const vis=r=>!r.archived||(isAdmin&&showArchived);
@@ -331,6 +348,7 @@ function render(){
   $("#cnt").textContent=mk.size?"("+mk.size+")":"";
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
   $("#adminBar").style.display=isAdmin?"flex":"none";
+  $("#updates").innerHTML=(loading||loadErr)?"":updatesHtml();
   if(loading){$("#chips").innerHTML="";$("#out").innerHTML='<p class="empty">Memuat produk…</p>';return;}
   if(loadErr){$("#chips").innerHTML="";$("#out").innerHTML='<p class="empty">Gagal memuat produk: '+esc(loadErr)+' <button class="btn-sm" id="btnRetry">Coba lagi</button></p>';return;}
   const base=pool();
@@ -401,6 +419,91 @@ function summary(arr){
   const box=(t,v,n)=>'<div><span>'+t+'</span><b>'+rp(v)+'</b><small>'+n+' item'+(n===1?"":"s")+'</small></div>';
   const f=(ip!=="All"?esc(ip):"")+(q.trim()?(ip!=="All"?" + ":"")+"“"+esc(q.trim())+"”":"");
   return (f?'<p class="fine" style="margin:0 0 6px">Totals for the current filter: <b>'+f+'</b></p>':"")+'<div class="sum">'+box("Owned (estimate)",own,nOwn)+box("Wishlist (estimate)",want,nWant)+box("Total",own+want,nOwn+nWant)+'</div><p class="fine" style="margin:-6px 0 14px">Estimated from the store prices on this page. Items without a price'+(noPrice?" ("+noPrice+")":"")+' are not counted. Wishlist items that are no longer sold are left out.</p>';
+}
+const DAY=864e5;
+const daysAgo=d=>(Date.now()-new Date(d).getTime())/DAY;
+function describeChange(o,n){
+  const out=[];
+  if(o.st!==n.status)out.push("Status: "+LABEL[o.st]+" → "+LABEL[n.status]);
+  if(n.price!=null&&o.price!==n.price)out.push(o.price==null?"Price added: "+rp(n.price):"Price changed: "+rp(o.price)+" → "+rp(n.price));
+  if(n.release_date&&(o.date||"")!==n.release_date)out.push(o.date?"Release date changed":"Release date set");
+  if(o.archived&&!n.archived)out.push("Back in stock");
+  if(n.buy_url&&!o.buyUrl)out.push("Buy link added");
+  return out.join(" · ");
+}
+function tagOf(r){
+  if(!r.notify)return null;
+  if(r.created&&daysAgo(r.created)<=7){
+    if(r.st==="upcoming")return {t:"NEW",sub:r.dateNote||"Upcoming"};
+    if(r.st==="released"&&r.date&&daysAgo(r.date+"T00:00:00")<=7)return {t:"NEW",sub:"Released "+fmtDate(r.date)};
+    return {t:"ADDED",sub:r.date?"Released "+fmtDate(r.date)+" · added from the older catalog":(r.st==="watch"?"Watch · not confirmed for Indonesia":"Release date not set")};
+  }
+  if(r.changedAt&&r.changeNote&&daysAgo(r.changedAt)<=7)return {t:"UPDATED",sub:r.changeNote};
+  return null;
+}
+function badge(r){
+  const g=tagOf(r);
+  return g?'<span class="tag tn tn-'+g.t.toLowerCase()+'">'+g.t+'</span>':"";
+}
+function updItems(){
+  const rank={NEW:0,UPDATED:1,ADDED:2};
+  const ts=x=>new Date(x.g.t==="UPDATED"?x.r.changedAt:x.r.created).getTime();
+  return R.map(r=>({r,g:tagOf(r)})).filter(x=>x.g&&!x.r.archived).sort((a,b)=>rank[a.g.t]-rank[b.g.t]||ts(b)-ts(a));
+}
+let updHide=false,updMore=false,hashDone=false;
+const grpOpen=new Set();
+function updatesHtml(){
+  const items=updItems();
+  if(!items.length)return "";
+  if(updHide)return '<div class="upd"><button class="btn-sm" data-updhide="1">Show latest updates ('+items.length+')</button></div>';
+  const added={};
+  items.filter(x=>x.g.t==="ADDED").forEach(x=>{const d=x.r.created.slice(0,10);(added[d]=added[d]||[]).push(x);});
+  const lines=[],seen=new Set();
+  items.forEach(x=>{
+    if(x.g.t!=="ADDED"){lines.push({x});return;}
+    const d=x.r.created.slice(0,10),grp=added[d];
+    if(grp.length<=3){lines.push({x});return;}
+    if(!seen.has(d)){seen.add(d);lines.push({grp,d});}
+    if(grpOpen.has(d))lines.push({x});
+  });
+  const shown=updMore?lines:lines.slice(0,8);
+  const cls={NEW:"",UPDATED:" uu",ADDED:" ua"};
+  const html=shown.map(l=>{
+    if(l.grp)return '<div class="ur"><span class="utag ua">'+l.grp.length+' ADDED</span><div><div style="font-weight:600">'+l.grp.length+' products added on '+fmtDate(l.d)+'</div><button class="ulink" data-grp="'+l.d+'">'+(grpOpen.has(l.d)?"Hide":"Show all")+'</button></div></div>';
+    return '<div class="ur"><span class="utag'+cls[l.x.g.t]+'">'+l.x.g.t+'</span><div><button class="ulink" data-upd="'+esc(l.x.r.id)+'">'+esc(l.x.r.name)+'</button><div class="usub">'+esc(l.x.g.sub)+'</div></div></div>';
+  }).join("");
+  const more=lines.length>8?'<div class="ur"><button class="ulink" data-updmore="1">'+(updMore?"Show fewer":"+ "+(lines.length-8)+" more")+'</button></div>':"";
+  return '<div class="upd"><div class="uh"><span>Latest updates · last 7 days</span><span><button class="btn-sm" data-sharewk="1">Share</button> <button class="btn-sm" data-updhide="1">Hide</button></span></div>'+html+more+'</div>';
+}
+function openFromHash(){
+  if(hashDone)return;
+  hashDone=true;
+  const id=decodeURIComponent((location.hash||"").slice(1)),r=R.find(x=>x.id===id);
+  if(!r)return;
+  tab=r.st==="released"?"released":"upcoming";ip="All";q=r.name;page=1;
+  $("#q").value=q;
+}
+function cardTools(r){
+  return '<div class="ctools"><button class="btn-sm" data-share="'+esc(r.id)+'">Share</button></div>';
+}
+function shareMsg(r){
+  const price=r.priceNote||(r.price!=null?rp(r.price):"");
+  return r.name+"\n"+LABEL[r.st]+(price?" · "+price:"")+(r.dateNote?" · "+r.dateNote:"");
+}
+function weekText(){
+  return "Latest updates on the Pop Mart Indonesia Release Tracker:\n"+updItems().slice(0,10).map(x=>"• "+x.g.t+": "+x.r.name+(x.g.t==="UPDATED"?" ("+x.g.sub+")":"")).join("\n");
+}
+function toast(t){
+  const el=document.createElement("div");
+  el.className="toast";el.textContent=t;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),2600);
+}
+async function shareText(text,url){
+  try{if(navigator.share){await navigator.share({text,url});return;}}
+  catch(err){if(err&&err.name==="AbortError")return;}
+  try{await navigator.clipboard.writeText(text+"\n"+url);toast("Copied. Paste it into WhatsApp or Telegram.");}
+  catch(err){toast("Could not copy. Link: "+url);}
 }
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
 
@@ -494,6 +597,7 @@ function openForm(id){
   $("#selLbl").innerHTML='Adjusting: <b>main photo</b>';
   $("#f_blind").checked=r?!!r.blind:false;
   $("#f_archived").checked=r?!!r.archived:false;
+  $("#f_notify").checked=r?r.notify:true;
   $("#vbulk").value="";
   $("#btnDelP").style.display=r?"":"none";
   fmsg("");
@@ -596,6 +700,7 @@ async function saveProduct(){
     tiktok_url:lnk("f_tiktok"),
     blind:$("#f_blind").checked,
     archived:$("#f_archived").checked,
+    notify:$("#f_notify").checked,
     img:$("#f_img").value.trim()||null,
     img_fit:$("#f_fit").value,
     img_ratio:$("#f_ratio").value,
@@ -604,6 +709,11 @@ async function saveProduct(){
     img_zoom:Math.round(mainPos.z),
     updated_at:new Date().toISOString()
   };
+  const old=form.isNew?null:R.find(x=>x.id===id);
+  if(old&&row.notify){
+    const ch=describeChange(old,row);
+    if(ch){row.changed_at=new Date().toISOString();row.change_note=ch;}
+  }
   const used=new Set();
   const vars=form.vars.filter(v=>v.name.trim()).map((v,i)=>{
     const base=v.slug||slugify(v.name)||("v"+(i+1));
@@ -755,6 +865,20 @@ document.addEventListener("click",e=>{
   const b=e.target.closest("[data-va]");
   if(b&&form){selectObj(form.vars[Number(b.dataset.va)]);}
   else if(e.target.id==="btnSelMain"){selectObj(null);}
+});
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-upd],[data-grp],[data-updmore],[data-updhide],[data-sharewk],[data-share]");
+  if(!t)return;
+  const d=t.dataset,url=location.origin+location.pathname;
+  if(d.upd){
+    const r=R.find(x=>x.id===d.upd);
+    if(r){tab=r.st==="released"?"released":"upcoming";ip="All";q=r.name;page=1;$("#q").value=q;render();document.querySelector(".tabs").scrollIntoView({behavior:"smooth"});}
+  }
+  else if(d.grp){grpOpen.has(d.grp)?grpOpen.delete(d.grp):grpOpen.add(d.grp);render();}
+  else if(d.updmore!==undefined){updMore=!updMore;render();}
+  else if(d.updhide!==undefined){updHide=!updHide;render();}
+  else if(d.sharewk!==undefined){shareText(weekText(),url);}
+  else if(d.share){const r=R.find(x=>x.id===d.share);if(r)shareText(shareMsg(r),url+"#"+r.id);}
 });
 let lastUid;
 sb.auth.onAuthStateChange((_event,session)=>{
