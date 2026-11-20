@@ -457,7 +457,7 @@ function updatesHtml(){
   if(!items.length)return "";
   if(updHide)return '<div class="upd"><button class="btn-sm" data-updhide="1">Show latest updates ('+items.length+')</button></div>';
   const added={};
-  items.filter(x=>x.g.t==="ADDED").forEach(x=>{const d=new Date(x.r.created).toLocaleDateString("en-CA")(added[d]=added[d]||[]).push(x);});
+  items.filter(x=>x.g.t==="ADDED").forEach(x=>{const d=new Date(x.r.created).toLocaleDateString("en-CA");(added[d]=added[d]||[]).push(x);});
   const lines=[],seen=new Set();
   items.forEach(x=>{
     if(x.g.t!=="ADDED"){lines.push({x});return;}
