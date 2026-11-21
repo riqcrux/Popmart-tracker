@@ -86,6 +86,12 @@ a{color:var(--accent)}
 .rmeta{font-size:12.5px;color:var(--mute)}
 .racts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .rstat{font-size:13px;font-weight:600}.rstat.ok{color:var(--ok)}.rstat.no{color:#c0392b}
+.walert{background:var(--soft);border:1px solid var(--warn);border-radius:12px;padding:10px 14px;margin-bottom:14px}
+.walert .ah{font-weight:600;margin-bottom:6px}
+.walert .ar{padding:5px 0;border-top:1px solid var(--line)}
+.walert .chg{font-size:12.5px;color:var(--mute)}
+.walert .aa{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.chgnote{background:var(--soft);border-radius:8px;padding:6px 9px;font-size:12.5px;color:var(--ok);font-weight:600}
 .tag.tn{background:var(--accent);color:var(--accent-ink);margin-left:6px;margin-right:auto}
 .tag.tn-added{background:var(--mute);color:var(--card)}
 .tag.tn-updated{background:var(--ok);color:#fff}
@@ -149,6 +155,7 @@ a{color:var(--accent)}
     <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="showArch"> Show archived</label>
   </div>
 
+  <div id="alerts"></div>
   <div id="updates"></div>
 
   <div class="tabs" role="tablist">
@@ -350,6 +357,7 @@ async function loadProducts(){
   else{R=data.map(fromRow);loadCounts();}
   loading=false;
   openFromHash();
+  computeAlertMarks();
   render();
 }
 
@@ -400,7 +408,7 @@ function card(r){
   return '<article class="card">'+pic(r)+'<div class="top"><span class="tag t-'+r.st+'">'+LABEL[r.st]+(r.archived?' · Not sold now':'')+'</span>'+badge(r)+'<span class="ip">'+esc(r.ip)+(isAdmin?' <button class="btn-sm" data-edit="'+esc(r.id)+'">Edit</button>':"")+'</span></div>'+
   '<h3>'+esc(r.name)+'</h3><div class="meta"><span>'+esc(r.type)+'</span><span class="price">'+price+'</span></div>'+
   '<div class="when">'+esc(when(r))+'</div><p class="where">'+esc(r.where)+'</p>'+(r.note?'<p class="note">'+esc(r.note)+'</p>':"")+
-  storeLinks(r)+stats(r)+acts(r)+cardTools(r)+'</article>';
+  storeLinks(r)+stats(r)+acts(r)+alertNote(r)+cardTools(r)+'</article>';
 }
 
 const vis=r=>!r.archived||(isAdmin&&showArchived);
@@ -416,6 +424,7 @@ function render(){
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
   $("#adminBar").style.display=isAdmin?"flex":"none";
   $("#updates").innerHTML=(loading||loadErr)?"":updatesHtml();
+  $("#alerts").innerHTML=(loading||loadErr)?"":alertsHtml();
   if(loading){$("#chips").innerHTML="";$("#out").innerHTML='<p class="empty">Memuat produk…</p>';return;}
   if(loadErr){$("#chips").innerHTML="";$("#out").innerHTML='<p class="empty">Gagal memuat produk: '+esc(loadErr)+' <button class="btn-sm" id="btnRetry">Coba lagi</button></p>';return;}
   const base=pool();
@@ -799,6 +808,36 @@ async function openMine(){
   await sb.rpc("mark_reports_seen");
   setMineBadge(0);
 }
+let alertSeen=null,alertAck=false,alertMarks=new Map();
+function alertItems(){
+  if(!currentUser||!alertSeen)return [];
+  const t=new Date(alertSeen).getTime();
+  return R.filter(r=>!r.archived&&r.notify&&r.changedAt&&r.changeNote&&new Date(r.changedAt).getTime()>t&&anyW(r))
+    .sort((a,b)=>new Date(b.changedAt)-new Date(a.changedAt));
+}
+function computeAlertMarks(){
+  if(alertAck)return;
+  alertMarks=new Map(alertItems().map(r=>[r.id,r.changeNote]));
+}
+function alertNote(r){
+  const n=alertMarks.get(r.id);
+  return n?'<div class="chgnote">Since your last visit: '+esc(n)+'</div>':"";
+}
+function alertsHtml(){
+  if(alertAck||!currentUser)return "";
+  const items=alertItems();
+  if(!items.length)return "";
+  const rows=items.slice(0,5).map(r=>'<div class="ar"><b>'+esc(r.name)+'</b><div class="chg">'+esc(r.changeNote)+'</div></div>').join("");
+  const more=items.length>5?'<div class="ar"><div class="chg">+ '+(items.length-5)+' more in My list</div></div>':"";
+  return '<div class="walert"><div class="ah">'+items.length+(items.length===1?" item":" items")+' on your wishlist changed since your last visit</div>'+rows+more+'<div class="aa"><button class="btn-sm primary" data-aview="1">View in My list</button><button class="btn-sm" data-adismiss="1">Dismiss</button></div></div>';
+}
+async function ackAlerts(){
+  alertAck=true;
+  const now=new Date().toISOString();
+  alertSeen=now;
+  render();
+  if(currentUser)await sb.from("user_lists").update({alerts_seen_at:now}).eq("user_id",currentUser.id);
+}
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
 
 /* ---------- wishlist saving ---------- */
@@ -822,6 +861,7 @@ async function save(){
 
 async function loadUserList(user){
   currentUser=user;
+  alertSeen=null;alertAck=false;alertMarks=new Map();
   listLoaded=false;
   isAdmin=false;
   if(!user){
@@ -836,7 +876,7 @@ async function loadUserList(user){
   $("#authBtns").innerHTML='<button class="btn-sm" id="btnLogout">Logout</button>';
   setStatus("Memuat wishlist kamu...");
   const [lst,adm]=await Promise.all([
-    sb.from("user_lists").select("wish,owned").eq("user_id",user.id).maybeSingle(),
+    sb.from("user_lists").select("wish,owned,alerts_seen_at").eq("user_id",user.id).maybeSingle(),
     sb.from("admins").select("user_id").eq("user_id",user.id).maybeSingle()
   ]);
   isAdmin=!!(adm.data);
@@ -850,6 +890,8 @@ async function loadUserList(user){
   if(lst.data){
     wish=new Set(lst.data.wish||[]);
     owned=new Set(lst.data.owned||[]);
+    alertSeen=lst.data.alerts_seen_at||null;
+    computeAlertMarks();
   }
   listLoaded=true;
   setStatus("Tersimpan ke akun ("+user.email+")"+(isAdmin?" · Admin":""),true);
@@ -1203,6 +1245,16 @@ document.addEventListener("click",e=>{
   if(!t)return;
   if(t.dataset.rconf)confirmReject(Number(t.dataset.rconf));
   else{rejectingId=null;$("#iBody").innerHTML=inboxHtml();}
+});
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-aview],[data-adismiss]");
+  if(!t)return;
+  if(t.dataset.aview){
+    tab="mine";ip="All";q="";page=1;$("#q").value="";
+    render();
+    document.querySelector(".tabs").scrollIntoView({behavior:"smooth"});
+  }
+  ackAlerts();
 });
 let lastUid;
 sb.auth.onAuthStateChange((_event,session)=>{
