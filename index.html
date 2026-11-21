@@ -85,6 +85,7 @@ a{color:var(--accent)}
 .rit{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:var(--card)}
 .rmeta{font-size:12.5px;color:var(--mute)}
 .racts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.rstat{font-size:13px;font-weight:600}.rstat.ok{color:var(--ok)}.rstat.no{color:#c0392b}
 .tag.tn{background:var(--accent);color:var(--accent-ink);margin-left:6px;margin-right:auto}
 .tag.tn-added{background:var(--mute);color:var(--card)}
 .tag.tn-updated{background:var(--ok);color:#fff}
@@ -121,7 +122,8 @@ a{color:var(--accent)}
 
   <div class="auth-bar">
     <div id="status" class="status">Browsing only (Masuk untuk simpan wishlist)</div>
-    <button class="btn-sm primary" id="btnSuggest">Suggest a product</button>
+    <button class="btn-sm primary" id="btnSuggest">Report or suggest</button>
+    <button class="btn-sm" id="btnMine">My reports</button>
     <div class="auth-btns" id="authBtns">
       <button class="btn-sm primary" id="btnShowAuth">Login / Daftar</button>
     </div>
@@ -190,6 +192,8 @@ a{color:var(--accent)}
       <option value="info">Some information is wrong</option>
       <option value="other">Something else</option>
     </select>
+    <div id="r_missNote" class="rit" style="display:none"><b>Only products sold in Indonesia count.</b> Reports about products that are not sold in Indonesia (for example only on the US or UK store) are rejected.
+      <label class="chk" style="margin-top:8px"><input type="checkbox" id="r_idn"> I checked that this product is sold in Indonesia</label></div>
     <div id="r_prodRow"><label for="r_prod">Product</label><select id="r_prod"></select></div>
     <div id="r_nameRow"><label for="r_name">Product name</label><input id="r_name" type="text" maxlength="120"></div>
     <div id="r_storeRow"><label for="r_store">Which link?</label>
@@ -211,6 +215,14 @@ a{color:var(--accent)}
       <button class="btn-sm" id="btnCloseR">Cancel</button>
     </div>
     <p class="fine">You earn points when the admin approves your report: broken link +5, wrong info +3, missing product +2. Maximum 5 reports and 15 points per day.</p>
+  </div>
+</div>
+
+<div class="modal" id="mModal">
+  <div class="sheet">
+    <h2>My reports</h2>
+    <div id="mBody"></div>
+    <div class="mbtns"><button class="btn-sm" id="btnCloseM">Close</button></div>
   </div>
 </div>
 
@@ -669,6 +681,124 @@ async function approvePending(){
   toast("Product added. Report approved (+"+((data&&data.points)||0)+" points).");
   loadInboxCount();
 }
+let rejectingId=null,mineItems=[];
+const REJ=[
+  ["Not sold in Indonesia. Only products sold in Indonesia count.","Not sold in Indonesia"],
+  ["This product is already on the website.","Already on the website"],
+  ["We could not find a problem with this link.","Link works fine"],
+  ["Not enough detail to check. Please add a source link or a clearer note.","Not enough detail"],
+  ["Another member reported this first.","Duplicate"],
+  ["","Other (write a reason below)"]
+];
+const RV={reason_required:"Please write a reason for the member.",already_reviewed:"This report was already reviewed.",not_admin:"Only the admin can do this."};
+function rptShowRows(){
+  const t=$("#r_type").value;
+  $("#r_idn").checked=false;
+  $("#r_missNote").style.display=t==="missing"?"block":"none";
+  $("#r_prodRow").style.display=(t==="link"||t==="info")?"block":"none";
+  $("#r_nameRow").style.display=t==="missing"?"block":"none";
+  $("#r_storeRow").style.display=t==="link"?"block":"none";
+  $("#r_urlLbl").textContent=t==="link"?"The correct link, if you know it (optional)":(t==="missing"?"Link to the product on the Indonesian store (required)":"Source link (optional)");
+  $("#r_noteLbl").textContent=t==="link"?"What is wrong with the link? (optional)":(t==="info"?"What is wrong, and what is correct? (required)":(t==="missing"?"Note (optional)":"Your message (required)"));
+}
+async function sendReport(){
+  const t=$("#r_type").value;
+  if(t==="missing"){
+    if(!$("#r_url").value.trim()){$("#rMsg").textContent="Please add the link to the product on an Indonesian store (Pop Mart Indonesia, Shopee, Lazada, Tokopedia or TikTok Shop).";return;}
+    if(!$("#r_idn").checked){$("#rMsg").textContent="Please confirm that the product is sold in Indonesia.";return;}
+  }
+  const nick=$("#rWho").style.display==="none"?null:$("#r_nick").value.trim();
+  const args={
+    p_type:t,
+    p_product_id:(t==="link"||t==="info")?$("#r_prod").value:null,
+    p_product_name:t==="missing"?$("#r_name").value.trim():null,
+    p_store:t==="link"?$("#r_store").value:null,
+    p_url:$("#r_url").value.trim()||null,
+    p_note:$("#r_note").value.trim()||null,
+    p_nickname:nick
+  };
+  $("#btnSendR").disabled=true;$("#rMsg").textContent="Sending…";
+  const {error}=await sb.rpc("submit_report",args);
+  if(error){$("#rMsg").textContent=rptErr(error);$("#btnSendR").disabled=false;return;}
+  closeReport();
+  toast("Sent! You earn points when the admin approves your report.");
+}
+function inboxHtml(){
+  if(!inboxItems.length)return '<p class="empty">Nothing waiting.</p>';
+  const lbl={missing:"Missing product",link:"Broken link",info:"Wrong info",other:"Other"},cls={missing:"rm",link:"rl",info:"ri",other:""};
+  return inboxItems.map(it=>{
+    const prod=it.product_name||it.product_id||"";
+    const link=/^https?:\/\//i.test(it.url||"")?'<a href="'+esc(it.url)+'" target="_blank" rel="noopener noreferrer">'+esc(it.url)+'</a>':"";
+    let acts;
+    if(it.id===rejectingId){
+      const def=it.type==="missing"?0:(it.type==="link"?2:3);
+      acts='<select id="rrSel" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit">'+REJ.map((r,i)=>'<option value="'+i+'"'+(i===def?" selected":"")+'>'+esc(r[1])+'</option>').join("")+'</select>'+
+        '<input id="rrTxt" type="text" maxlength="200" placeholder="Extra note for the member (optional)" style="flex:1;min-width:160px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit">'+
+        '<button class="btn-sm primary" data-rconf="'+it.id+'">Send rejection</button><button class="btn-sm" data-rcancel="1">Cancel</button>';
+    }else{
+      acts=(it.type==="missing"?'<button class="btn-sm primary" data-radd="'+it.id+'">Add as product</button>':"")+
+        '<button class="btn-sm'+(it.type==="missing"?"":" primary")+'" data-rapp="'+it.id+'">Approve</button>'+
+        (it.product_id?'<button class="btn-sm" data-redit="'+it.id+'">Edit product</button>':"")+
+        '<button class="btn-sm" data-rrej="'+it.id+'">Reject</button>';
+    }
+    return '<div class="rit"><span class="rtag '+cls[it.type]+'">'+lbl[it.type]+'</span> <span class="rmeta">from '+esc(it.nickname||"unknown")+' · '+new Date(it.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+'</span>'+
+      '<div style="font-weight:600">'+esc(prod)+(it.store?" · "+esc(it.store):"")+'</div>'+
+      (it.note?'<div class="rmeta">“'+esc(it.note)+'”</div>':"")+
+      (link?'<div class="rmeta">'+link+'</div>':"")+
+      '<div class="racts">'+acts+'</div></div>';
+  }).join("");
+}
+function startReject(id){rejectingId=id;$("#iBody").innerHTML=inboxHtml();}
+function confirmReject(id){
+  const base=REJ[Number($("#rrSel").value)][0],extra=$("#rrTxt").value.trim();
+  const reason=base?(base+(extra?" "+extra:"")):extra;
+  if(!reason){toast("Write a reason for the member.");return;}
+  rejectingId=null;
+  reviewRpt(id,"reject",reason);
+}
+async function reviewRpt(id,decision,note){
+  if(decision==="reject"&&note===undefined){startReject(id);return;}
+  const {data,error}=await sb.rpc("review_report",{p_id:id,p_decision:decision,p_note:note||null});
+  if(error){toast(RV[error.message]||("Could not save: "+error.message));return;}
+  toast(decision==="reject"?"Rejected. The member can see your reason.":(data&&data.status==="duplicate"?"Approved as a duplicate (0 points).":"Approved (+"+((data&&data.points)||0)+" points)."));
+  await loadInboxCount();
+  $("#iBody").innerHTML=inboxHtml();
+}
+function setMineBadge(n){$("#btnMine").textContent=n>0?"My reports ("+n+" new)":"My reports";}
+async function fetchMine(){
+  const {data,error}=await sb.rpc("my_reports");
+  if(error||!data)return false;
+  mineItems=data;
+  return true;
+}
+async function loadMyReports(){
+  if(!(await fetchMine()))return;
+  const n=mineItems.filter(x=>x.status!=="pending"&&!x.seen).length;
+  setMineBadge(n);
+  if(n>0)toast(n===1?"One of your reports was reviewed. Tap My reports to see it.":n+" of your reports were reviewed. Tap My reports to see them.");
+}
+function mineHtml(){
+  if(!mineItems.length)return '<p class="empty">You have not sent any reports yet.</p>';
+  const lbl={missing:"Missing product",link:"Broken link",info:"Wrong info",other:"Other"};
+  const st={pending:["Waiting for review",""],approved:["Approved","ok"],duplicate:["Duplicate","ok"],rejected:["Rejected","no"]};
+  return mineItems.map(it=>{
+    const s=st[it.status]||[it.status,""];
+    const pts=(it.status==="approved"||it.status==="duplicate")?" · +"+it.points+" points":"";
+    return '<div class="rit"><span class="rtag">'+lbl[it.type]+'</span> <span class="rmeta">'+new Date(it.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+'</span>'+(!it.seen?' <span class="rtag rm">NEW</span>':"")+
+      '<div style="font-weight:600">'+esc(it.product_name||"")+'</div>'+
+      '<div class="rstat '+s[1]+'">'+s[0]+pts+'</div>'+
+      (it.review_note?'<div class="rmeta">'+(it.status==="rejected"?"Reason: ":"Note: ")+esc(it.review_note)+'</div>':"")+'</div>';
+  }).join("");
+}
+async function openMine(){
+  if(!currentUser){$("#authBox").classList.add("open");toast("Please log in to see your reports.");window.scrollTo({top:0,behavior:"smooth"});return;}
+  $("#mBody").innerHTML='<p class="empty">Loading…</p>';
+  $("#mModal").classList.add("open");
+  await fetchMine();
+  $("#mBody").innerHTML=mineHtml();
+  await sb.rpc("mark_reports_seen");
+  setMineBadge(0);
+}
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
 
 /* ---------- wishlist saving ---------- */
@@ -696,6 +826,7 @@ async function loadUserList(user){
   isAdmin=false;
   if(!user){
     wish=new Set();owned=new Set();
+    setMineBadge(0);
     setStatus("Browsing only (Masuk untuk simpan wishlist)");
     $("#authBtns").innerHTML='<button class="btn-sm primary" id="btnShowAuth">Login / Daftar</button>';
     render();
@@ -710,6 +841,7 @@ async function loadUserList(user){
   ]);
   isAdmin=!!(adm.data);
   if(isAdmin)loadInboxCount();
+  loadMyReports();
   if(lst.error){
     setStatus("Gagal memuat wishlist. Coba refresh halaman.");
     render();
@@ -1063,6 +1195,15 @@ document.addEventListener("click",e=>{
   else if(d.rrej)reviewRpt(Number(d.rrej),"reject");
 });
 $("#r_type").addEventListener("change",rptShowRows);
+document.addEventListener("click",e=>{
+  const id=e.target.id;
+  if(id==="btnMine"){openMine();return;}
+  if(id==="btnCloseM"||id==="mModal"){$("#mModal").classList.remove("open");return;}
+  const t=e.target.closest("[data-rconf],[data-rcancel]");
+  if(!t)return;
+  if(t.dataset.rconf)confirmReject(Number(t.dataset.rconf));
+  else{rejectingId=null;$("#iBody").innerHTML=inboxHtml();}
+});
 let lastUid;
 sb.auth.onAuthStateChange((_event,session)=>{
   const u=session?session.user:null,uid=u?u.id:null;
