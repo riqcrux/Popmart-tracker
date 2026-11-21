@@ -177,7 +177,7 @@ a{color:var(--accent)}
 <!-- Reports -->
 <div class="modal" id="rModal">
   <div class="sheet">
-    <h2 id="rTitle">Suggest a product or report a problem</h2>
+    <h2 id="rTitle">Report or suggest</h2>
     <p class="fine" id="rStats" style="margin:0 0 6px"></p>
     <div id="rWho" style="display:none">
       <label for="r_nick">Choose a nickname (shown on the leaderboard)</label>
@@ -577,7 +577,7 @@ async function openReport(pid){
   $("#r_prod").innerHTML=R.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(r=>'<option value="'+esc(r.id)+'">'+esc(r.name)+'</option>').join("");
   $("#r_type").value=pid?"link":"missing";
   if(pid)$("#r_prod").value=pid;
-  $("#rTitle").textContent=pid?"Report a problem":"Suggest a product or report a problem";
+  $("#rTitle").textContent=pid?"Report a problem":"Report or suggest";
   ["r_name","r_url","r_note","r_nick"].forEach(id=>{$("#"+id).value="";});
   $("#r_store").value="official";
   $("#rMsg").textContent="";
