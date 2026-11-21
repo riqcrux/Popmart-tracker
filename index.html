@@ -80,6 +80,11 @@ a{color:var(--accent)}
 .vrow{display:grid;grid-template-columns:1fr auto auto auto auto auto;gap:6px;align-items:center;margin-bottom:6px}
 .vrow label.chk{margin:0}
 .mbtns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.rtag{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:99px;background:var(--soft)}
+.rtag.rm{color:var(--accent)}.rtag.rl{color:var(--warn)}.rtag.ri{color:var(--ok)}
+.rit{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:var(--card)}
+.rmeta{font-size:12.5px;color:var(--mute)}
+.racts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .tag.tn{background:var(--accent);color:var(--accent-ink);margin-left:6px;margin-right:auto}
 .tag.tn-added{background:var(--mute);color:var(--card)}
 .tag.tn-updated{background:var(--ok);color:#fff}
@@ -116,6 +121,7 @@ a{color:var(--accent)}
 
   <div class="auth-bar">
     <div id="status" class="status">Browsing only (Masuk untuk simpan wishlist)</div>
+    <button class="btn-sm primary" id="btnSuggest">Suggest a product</button>
     <div class="auth-btns" id="authBtns">
       <button class="btn-sm primary" id="btnShowAuth">Login / Daftar</button>
     </div>
@@ -136,6 +142,7 @@ a{color:var(--accent)}
   <div class="adminbar" id="adminBar">
     <strong>Admin</strong>
     <button class="btn-sm primary" id="btnAdd">+ Add product</button>
+    <button class="btn-sm" id="btnInbox">Inbox</button>
     <span class="fine" style="margin:0">Tap Edit on any card to change it.</span>
     <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="showArch"> Show archived</label>
   </div>
@@ -165,6 +172,54 @@ a{color:var(--accent)}
     </ul>
     <p class="fine">Prices are from the official Indonesia store at the time they were checked and can change. Items marked “Watch” have launched elsewhere but have no confirmed Indonesia date yet. Always confirm on official channels before buying. Kami hanya menyimpan email dan daftar wishlist kamu.</p>
   </section>
+</div>
+
+<!-- Reports -->
+<div class="modal" id="rModal">
+  <div class="sheet">
+    <h2 id="rTitle">Suggest a product or report a problem</h2>
+    <p class="fine" id="rStats" style="margin:0 0 6px"></p>
+    <div id="rWho" style="display:none">
+      <label for="r_nick">Choose a nickname (shown on the leaderboard)</label>
+      <input id="r_nick" type="text" maxlength="20" placeholder="3 to 20 letters, numbers, _ or .">
+    </div>
+    <label for="r_type">What do you want to tell us?</label>
+    <select id="r_type">
+      <option value="missing">A product is missing</option>
+      <option value="link">A link is broken or wrong</option>
+      <option value="info">Some information is wrong</option>
+      <option value="other">Something else</option>
+    </select>
+    <div id="r_prodRow"><label for="r_prod">Product</label><select id="r_prod"></select></div>
+    <div id="r_nameRow"><label for="r_name">Product name</label><input id="r_name" type="text" maxlength="120"></div>
+    <div id="r_storeRow"><label for="r_store">Which link?</label>
+      <select id="r_store">
+        <option value="official">Pop Mart official store</option>
+        <option value="shopee">Shopee</option>
+        <option value="lazada">Lazada</option>
+        <option value="tokopedia">Tokopedia</option>
+        <option value="tiktok">TikTok Shop</option>
+        <option value="other">Other</option>
+      </select></div>
+    <label for="r_url" id="r_urlLbl">Link (optional)</label>
+    <input id="r_url" type="text" maxlength="300" placeholder="https://...">
+    <label for="r_note" id="r_noteLbl">Note</label>
+    <textarea id="r_note" rows="3" maxlength="500"></textarea>
+    <p class="auth-msg" id="rMsg"></p>
+    <div class="mbtns">
+      <button class="btn-sm primary" id="btnSendR">Send to admin</button>
+      <button class="btn-sm" id="btnCloseR">Cancel</button>
+    </div>
+    <p class="fine">You earn points when the admin approves your report: broken link +5, wrong info +3, missing product +2. Maximum 5 reports and 15 points per day.</p>
+  </div>
+</div>
+
+<div class="modal" id="iModal">
+  <div class="sheet">
+    <h2>Admin inbox</h2>
+    <div id="iBody"></div>
+    <div class="mbtns"><button class="btn-sm" id="btnCloseI">Close</button></div>
+  </div>
 </div>
 
 <!-- Admin editor -->
@@ -484,7 +539,7 @@ function openFromHash(){
   $("#q").value=q;
 }
 function cardTools(r){
-  return '<div class="ctools"><button class="btn-sm" data-share="'+esc(r.id)+'">Share</button></div>';
+  return '<div class="ctools"><button class="btn-sm" data-share="'+esc(r.id)+'">Share</button><button class="btn-sm" data-report="'+esc(r.id)+'">Report a problem</button></div>';
 }
 function shareMsg(r){
   const price=r.priceNote||(r.price!=null?rp(r.price):"");
@@ -504,6 +559,115 @@ async function shareText(text,url){
   catch(err){if(err&&err.name==="AbortError")return;}
   try{await navigator.clipboard.writeText(text+"\n"+url);toast("Copied. Paste it into WhatsApp or Telegram.");}
   catch(err){toast("Could not copy. Link: "+url);}
+}
+let rptCtx=null,rptStats=null,inboxItems=[],pendingReport=null;
+const RERR={not_logged_in:"Please log in first.",not_confirmed:"Please confirm your email first.",new_account:"New accounts can send reports after 24 hours.",daily_limit:"You've sent 5 of 5 reports today. You can send more tomorrow. The limit resets at 00:00 WIB.",paused:"Reporting is paused for 24 hours because several recent reports were rejected.",bad_type:"Choose what you want to report.",bad_url:"The link must start with https://",product_required:"Choose the product.",store_required:"Choose which link.",name_required:"Enter the product name (at least 3 letters).",note_required:"Add a short note (at least 5 characters) so the admin can check it.",nickname_required:"Choose a nickname.",nickname_invalid:"Nickname: 3 to 20 letters, numbers, _ or .",nickname_taken:"That nickname is taken. Try another.",already_sent:"You already sent this report. The admin will review it."};
+function rptErr(e){const m=(e&&e.message)||"";return RERR[m]||("Could not send: "+m);}
+function rptShowRows(){
+  const t=$("#r_type").value;
+  $("#r_prodRow").style.display=(t==="link"||t==="info")?"block":"none";
+  $("#r_nameRow").style.display=t==="missing"?"block":"none";
+  $("#r_storeRow").style.display=t==="link"?"block":"none";
+  $("#r_urlLbl").textContent=t==="link"?"The correct link, if you know it (optional)":(t==="missing"?"Link to the product (optional)":"Source link (optional)");
+  $("#r_noteLbl").textContent=t==="link"?"What is wrong with the link? (optional)":(t==="info"?"What is wrong, and what is correct? (required)":(t==="missing"?"Note (optional)":"Your message (required)"));
+}
+async function openReport(pid){
+  if(!currentUser){$("#authBox").classList.add("open");toast("Please log in first to send a report.");window.scrollTo({top:0,behavior:"smooth"});return;}
+  rptCtx={pid:pid||null};
+  $("#r_prod").innerHTML=R.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(r=>'<option value="'+esc(r.id)+'">'+esc(r.name)+'</option>').join("");
+  $("#r_type").value=pid?"link":"missing";
+  if(pid)$("#r_prod").value=pid;
+  $("#rTitle").textContent=pid?"Report a problem":"Suggest a product or report a problem";
+  ["r_name","r_url","r_note","r_nick"].forEach(id=>{$("#"+id).value="";});
+  $("#r_store").value="official";
+  $("#rMsg").textContent="";
+  rptShowRows();
+  $("#rStats").textContent="Loading…";
+  $("#rWho").style.display="none";
+  $("#btnSendR").disabled=true;
+  $("#rModal").classList.add("open");
+  const {data,error}=await sb.rpc("my_report_stats");
+  if(error||!data){$("#rStats").textContent="";$("#btnSendR").disabled=false;return;}
+  rptStats=data;
+  $("#rStats").textContent="Reports today: "+data.sent_today+" of 5 · Points today: "+data.points_today+" of 15 · This month: "+data.points_month;
+  $("#rWho").style.display=data.nickname?"none":"block";
+  const full=data.sent_today>=5;
+  if(full)$("#rMsg").textContent=RERR.daily_limit;
+  $("#btnSendR").disabled=full;
+}
+function closeReport(){$("#rModal").classList.remove("open");}
+async function sendReport(){
+  const t=$("#r_type").value;
+  const nick=$("#rWho").style.display==="none"?null:$("#r_nick").value.trim();
+  const args={
+    p_type:t,
+    p_product_id:(t==="link"||t==="info")?$("#r_prod").value:null,
+    p_product_name:t==="missing"?$("#r_name").value.trim():null,
+    p_store:t==="link"?$("#r_store").value:null,
+    p_url:$("#r_url").value.trim()||null,
+    p_note:$("#r_note").value.trim()||null,
+    p_nickname:nick
+  };
+  $("#btnSendR").disabled=true;$("#rMsg").textContent="Sending…";
+  const {error}=await sb.rpc("submit_report",args);
+  if(error){$("#rMsg").textContent=rptErr(error);$("#btnSendR").disabled=false;return;}
+  closeReport();
+  toast("Sent! You earn points when the admin approves your report.");
+}
+async function loadInboxCount(){
+  const {data,error}=await sb.rpc("admin_reports",{p_status:"pending"});
+  if(error||!data)return;
+  inboxItems=data;
+  $("#btnInbox").textContent="Inbox ("+data.length+")";
+}
+function inboxHtml(){
+  if(!inboxItems.length)return '<p class="empty">Nothing waiting.</p>';
+  const lbl={missing:"Missing product",link:"Broken link",info:"Wrong info",other:"Other"},cls={missing:"rm",link:"rl",info:"ri",other:""};
+  return inboxItems.map(it=>{
+    const prod=it.product_name||it.product_id||"";
+    const link=/^https?:\/\//i.test(it.url||"")?'<a href="'+esc(it.url)+'" target="_blank" rel="noopener noreferrer">'+esc(it.url)+'</a>':"";
+    const acts=(it.type==="missing"?'<button class="btn-sm primary" data-radd="'+it.id+'">Add as product</button>':"")+
+      '<button class="btn-sm'+(it.type==="missing"?"":" primary")+'" data-rapp="'+it.id+'">Approve</button>'+
+      (it.product_id?'<button class="btn-sm" data-redit="'+it.id+'">Edit product</button>':"")+
+      '<button class="btn-sm" data-rrej="'+it.id+'">Reject</button>';
+    return '<div class="rit"><span class="rtag '+cls[it.type]+'">'+lbl[it.type]+'</span> <span class="rmeta">from '+esc(it.nickname||"unknown")+' · '+new Date(it.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+'</span>'+
+      '<div style="font-weight:600">'+esc(prod)+(it.store?" · "+esc(it.store):"")+'</div>'+
+      (it.note?'<div class="rmeta">“'+esc(it.note)+'”</div>':"")+
+      (link?'<div class="rmeta">'+link+'</div>':"")+
+      '<div class="racts">'+acts+'</div></div>';
+  }).join("");
+}
+async function openInbox(){
+  $("#iBody").innerHTML='<p class="empty">Loading…</p>';
+  $("#iModal").classList.add("open");
+  await loadInboxCount();
+  $("#iBody").innerHTML=inboxHtml();
+}
+function closeInbox(){$("#iModal").classList.remove("open");}
+async function reviewRpt(id,decision){
+  const {data,error}=await sb.rpc("review_report",{p_id:id,p_decision:decision});
+  if(error){toast("Could not save: "+error.message);return;}
+  toast(decision==="reject"?"Rejected.":(data&&data.status==="duplicate"?"Approved as a duplicate (0 points).":"Approved (+"+((data&&data.points)||0)+" points)."));
+  await loadInboxCount();
+  $("#iBody").innerHTML=inboxHtml();
+}
+function addFromReport(id){
+  const it=inboxItems.find(x=>Number(x.id)===id);
+  if(!it)return;
+  closeInbox();
+  openForm(null);
+  $("#f_name").value=it.product_name||"";
+  const b=$("#f_buy");
+  if(b&&it.url)b.value=it.url;
+  pendingReport=id;
+}
+async function approvePending(){
+  const rid=pendingReport;pendingReport=null;
+  if(!rid)return;
+  const {data,error}=await sb.rpc("review_report",{p_id:rid,p_decision:"approve"});
+  if(error){toast("Product saved, but the report was not approved: "+error.message);return;}
+  toast("Product added. Report approved (+"+((data&&data.points)||0)+" points).");
+  loadInboxCount();
 }
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
 
@@ -545,6 +709,7 @@ async function loadUserList(user){
     sb.from("admins").select("user_id").eq("user_id",user.id).maybeSingle()
   ]);
   isAdmin=!!(adm.data);
+  if(isAdmin)loadInboxCount();
   if(lst.error){
     setStatus("Gagal memuat wishlist. Coba refresh halaman.");
     render();
@@ -605,7 +770,7 @@ function openForm(id){
   updatePrev();
   $("#pModal").classList.add("open");
 }
-function closeForm(){$("#pModal").classList.remove("open");form=null;}
+function closeForm(){$("#pModal").classList.remove("open");form=null;pendingReport=null;}
 
 function renderVars(){
   $("#vlist").innerHTML=form.vars.map((v,i)=>
@@ -733,6 +898,7 @@ async function saveProduct(){
     let d=sb.from("variants").delete().eq("product_id",id);
     if(vars.length)d=d.not("slug","in","("+vars.map(v=>v.slug).join(",")+")");
     r=await d;
+    if(!r.error&&pendingReport)await approvePending();
     if(r.error)throw r.error;
     closeForm();
     await loadProducts();
@@ -880,6 +1046,23 @@ document.addEventListener("click",e=>{
   else if(d.sharewk!==undefined){shareText(weekText(),url);}
   else if(d.share){const r=R.find(x=>x.id===d.share);if(r)shareText(shareMsg(r),url+"#"+r.id);}
 });
+document.addEventListener("click",e=>{
+  const id=e.target.id;
+  if(id==="btnSuggest"){openReport(null);return;}
+  if(id==="btnCloseR"||id==="rModal"){closeReport();return;}
+  if(id==="btnSendR"){sendReport();return;}
+  if(id==="btnInbox"){openInbox();return;}
+  if(id==="btnCloseI"||id==="iModal"){closeInbox();return;}
+  const t=e.target.closest("[data-report],[data-radd],[data-rapp],[data-redit],[data-rrej]");
+  if(!t)return;
+  const d=t.dataset;
+  if(d.report!==undefined)openReport(d.report);
+  else if(d.radd)addFromReport(Number(d.radd));
+  else if(d.rapp)reviewRpt(Number(d.rapp),"approve");
+  else if(d.redit){const it=inboxItems.find(x=>String(x.id)===d.redit);if(it&&it.product_id){closeInbox();openForm(it.product_id);}}
+  else if(d.rrej)reviewRpt(Number(d.rrej),"reject");
+});
+$("#r_type").addEventListener("change",rptShowRows);
 let lastUid;
 sb.auth.onAuthStateChange((_event,session)=>{
   const u=session?session.user:null,uid=u?u.id:null;
