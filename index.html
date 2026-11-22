@@ -92,6 +92,12 @@ a{color:var(--accent)}
 .walert .chg{font-size:12.5px;color:var(--mute)}
 .walert .aa{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .chgnote{background:var(--soft);border-radius:8px;padding:6px 9px;font-size:12.5px;color:var(--ok);font-weight:600}
+.lbr{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.lbr:last-child{border-bottom:0}
+.lbr.me{background:var(--soft);border-radius:8px;padding-left:8px;padding-right:8px}
+.lbk{width:30px;display:flex;justify-content:center;font-weight:600;color:var(--mute)}
+.lbn{flex:1}.lbp{font-weight:600}
+.rules{font-size:13.5px}.rules li{margin-bottom:6px}
 .tag.tn{background:var(--accent);color:var(--accent-ink);margin-left:6px;margin-right:auto}
 .tag.tn-added{background:var(--mute);color:var(--card)}
 .tag.tn-updated{background:var(--ok);color:#fff}
@@ -130,6 +136,7 @@ a{color:var(--accent)}
     <div id="status" class="status">Browsing only (Masuk untuk simpan wishlist)</div>
     <button class="btn-sm primary" id="btnSuggest">Report or suggest</button>
     <button class="btn-sm" id="btnMine">My reports</button>
+    <button class="btn-sm" id="btnBoard">Leaderboard</button>
     <div class="auth-btns" id="authBtns">
       <button class="btn-sm primary" id="btnShowAuth">Login / Daftar</button>
     </div>
@@ -151,10 +158,12 @@ a{color:var(--accent)}
     <strong>Admin</strong>
     <button class="btn-sm primary" id="btnAdd">+ Add product</button>
     <button class="btn-sm" id="btnInbox">Inbox</button>
+    <button class="btn-sm" id="btnWinners">Winners</button>
     <span class="fine" style="margin:0">Tap Edit on any card to change it.</span>
     <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="showArch"> Show archived</label>
   </div>
 
+  <div id="winbar"></div>
   <div id="alerts"></div>
   <div id="updates"></div>
 
@@ -222,6 +231,37 @@ a{color:var(--accent)}
       <button class="btn-sm" id="btnCloseR">Cancel</button>
     </div>
     <p class="fine">You earn points when the admin approves your report: broken link +5, wrong info +3, missing product +2. Maximum 5 reports and 15 points per day.</p>
+  </div>
+</div>
+
+<div class="modal" id="bModal">
+  <div class="sheet">
+    <h2>Leaderboard</h2>
+    <div id="bTabs" class="mbtns" style="margin:0 0 10px"></div>
+    <div id="bBody"></div>
+    <div class="mbtns"><button class="btn-sm" id="btnCloseB">Close</button></div>
+  </div>
+</div>
+
+<div class="modal" id="cModal">
+  <div class="sheet">
+    <h2>Claim your reward</h2>
+    <p class="fine">Enter a WhatsApp number or Instagram handle so we can contact you. Only the admin can see it. Shipping details are asked in a private chat, never here.</p>
+    <label for="c_contact">WhatsApp number or Instagram</label>
+    <input id="c_contact" type="text" maxlength="80" placeholder="@your_handle or 08xx...">
+    <p class="auth-msg" id="cMsg"></p>
+    <div class="mbtns">
+      <button class="btn-sm primary" id="btnSendC">Send</button>
+      <button class="btn-sm" id="btnCloseC">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="wModal">
+  <div class="sheet">
+    <h2>Monthly winners</h2>
+    <div id="wBody"></div>
+    <div class="mbtns"><button class="btn-sm" id="btnCloseW">Close</button></div>
   </div>
 </div>
 
@@ -425,6 +465,7 @@ function render(){
   $("#adminBar").style.display=isAdmin?"flex":"none";
   $("#updates").innerHTML=(loading||loadErr)?"":updatesHtml();
   $("#alerts").innerHTML=(loading||loadErr)?"":alertsHtml();
+  $("#winbar").innerHTML=(loading||loadErr)?"":winHtml();
   if(loading){$("#chips").innerHTML="";$("#out").innerHTML='<p class="empty">Memuat produk…</p>';return;}
   if(loadErr){$("#chips").innerHTML="";$("#out").innerHTML='<p class="empty">Gagal memuat produk: '+esc(loadErr)+' <button class="btn-sm" id="btnRetry">Coba lagi</button></p>';return;}
   const base=pool();
@@ -838,6 +879,101 @@ async function ackAlerts(){
   render();
   if(currentUser)await sb.from("user_lists").update({alerts_seen_at:now}).eq("user_id",currentUser.id);
 }
+const MEDAL_C={1:"#d9a520",2:"#9aa3ad",3:"#b87333"};
+function medal(p,w){
+  w=w||22;
+  return '<svg width="'+w+'" height="'+Math.round(w*1.3)+'" viewBox="0 0 40 52" style="color:'+MEDAL_C[p]+'" aria-label="Place '+p+'"><polygon points="11,1 20,19 14,21 5,5" fill="#5b7fc7"/><polygon points="29,1 20,19 26,21 35,5" fill="#d6534b"/><circle cx="20" cy="32" r="14" fill="currentColor"/><circle cx="20" cy="32" r="10.5" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.5"/><polygon points="20,24.5 22.2,29.1 27.2,29.8 23.6,33.3 24.5,38.3 20,35.9 15.5,38.3 16.4,33.3 12.8,29.8 17.8,29.1" fill="#fff" fill-opacity=".92"/></svg>';
+}
+let boardTab="month",boardRows=[],hofRows=[],boardPrefs=null,myWins=[],claimId=null,adminWins=[];
+const monthName=d=>new Date(d+"T00:00:00").toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+function prevMonthStart(){
+  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-01";
+}
+function thisMonthStart(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-01";
+}
+const RULES_HTML='<ul class="rules"><li><b>Points</b> count only after the admin approves a report: broken link +5, wrong info +3, missing product +2.</li><li>Only products <b>sold in Indonesia</b> count.</li><li>Limit: 5 reports and 15 points per day. It resets at 00:00 WIB.</li><li>The first valid report wins. Later reports about the same thing get no points.</li><li><b>Ties:</b> more approved reports first, then who reached the score first.</li><li>The leaderboard starts again on the 1st of every month (Jakarta time). The top 3 of each month get a medal and a reward. Winners must claim within 7 days.</li><li>Fake or spam reports can mean disqualification. The admin’s decision is final.</li></ul>';
+function boardRowsHtml(){
+  if(!boardRows.length)return '<p class="empty">No approved reports this month yet. Be the first!</p>';
+  const row=r=>'<div class="lbr'+(r.is_me?' me':'')+'"><span class="lbk">'+(r.place<=3?medal(r.place):r.place)+'</span><span class="lbn">'+esc(r.nickname)+(r.is_me?' <span class="rmeta">(you)</span>':'')+'</span><span class="lbp">'+r.points+'</span></div>';
+  const top=boardRows.filter(r=>r.place<=10),me=boardRows.find(r=>r.is_me&&r.place>10);
+  return top.map(row).join("")+(me?'<div class="rmeta" style="text-align:center">…</div>'+row(me):"");
+}
+function hofHtml(){
+  if(!hofRows.length)return '<p class="empty">No winners yet. The first month appears here after it is closed.</p>';
+  const by={};
+  hofRows.forEach(r=>{(by[r.month]=by[r.month]||[]).push(r);});
+  return Object.keys(by).sort().reverse().map(m=>'<div class="rit"><div style="font-weight:600;margin-bottom:4px">'+monthName(m)+'</div>'+by[m].map(r=>'<div class="lbr"><span class="lbk">'+medal(r.place)+'</span><span class="lbn">'+esc(r.nickname)+'</span><span class="lbp">'+r.points+'</span></div>').join("")+'</div>').join("");
+}
+function boardView(){
+  const tabs=[["month","This month"],["hof","Hall of fame"],["rules","Rules"]];
+  $("#bTabs").innerHTML=tabs.map(t=>'<button class="btn-sm'+(boardTab===t[0]?" primary":"")+'" data-btab="'+t[0]+'">'+t[1]+'</button>').join("");
+  if(boardTab==="rules"){$("#bBody").innerHTML=RULES_HTML;return;}
+  if(boardTab==="hof"){$("#bBody").innerHTML=hofHtml();return;}
+  const hide=boardPrefs?'<label class="chk" style="margin-top:10px"><input type="checkbox" id="b_hide"'+(boardPrefs.hide_name?" checked":"")+'> Hide my nickname (show me as Anonymous)</label>':"";
+  $("#bBody").innerHTML='<div class="rmeta" style="margin-bottom:6px">'+monthName(thisMonthStart())+'</div>'+boardRowsHtml()+hide;
+}
+async function loadBoard(){
+  const [b,h,p]=await Promise.all([sb.rpc("leaderboard"),sb.rpc("hall_of_fame"),currentUser?sb.rpc("my_board_prefs"):Promise.resolve({data:null})]);
+  boardRows=b.error?[]:(b.data||[]);
+  hofRows=h.error?[]:(h.data||[]);
+  boardPrefs=p.error?null:(p.data||null);
+  boardView();
+}
+async function openBoard(){
+  boardTab="month";
+  $("#bBody").innerHTML='<p class="empty">Loading…</p>';
+  $("#bModal").classList.add("open");
+  await loadBoard();
+}
+async function loadMyWins(){
+  if(!currentUser){myWins=[];render();return;}
+  const {data,error}=await sb.from("monthly_winners").select("id,month,place,points,contact,created_at").eq("user_id",currentUser.id);
+  if(error||!data)return;
+  myWins=data.filter(w=>!w.contact&&Date.now()-new Date(w.created_at).getTime()<7*864e5);
+  render();
+}
+function winHtml(){
+  if(!currentUser||!myWins.length)return "";
+  return myWins.map(w=>{
+    const left=Math.max(1,Math.ceil((7*864e5-(Date.now()-new Date(w.created_at).getTime()))/864e5));
+    return '<div class="walert"><div class="ah">'+medal(w.place,24)+' You finished #'+w.place+' in '+monthName(w.month)+' ('+w.points+' points)</div><div class="chg">Claim your reward within '+left+' day'+(left===1?"":"s")+'. Only the admin sees what you enter.</div><div class="aa"><button class="btn-sm primary" data-claim="'+w.id+'">Claim reward</button></div></div>';
+  }).join("");
+}
+const CERR={claim_expired:"The 7 days are over. Please contact the admin.",contact_required:"Enter a WhatsApp number or Instagram handle (at least 5 characters).",already_claimed:"You already claimed this reward.",not_found:"This reward was not found."};
+async function sendClaim(){
+  const {error}=await sb.rpc("claim_reward",{p_id:claimId,p_contact:$("#c_contact").value.trim()});
+  if(error){$("#cMsg").textContent=CERR[error.message]||("Could not send: "+error.message);return;}
+  $("#cModal").classList.remove("open");
+  toast("Thank you! The admin will contact you.");
+  loadMyWins();
+}
+function winnersHtml(){
+  const pm=prevMonthStart();
+  const closed=adminWins.some(w=>w.month===pm);
+  const head=closed?'<p class="rmeta">'+monthName(pm)+' is closed.</p>':'<button class="btn-sm primary" data-closem="'+pm+'">Close '+monthName(pm)+' and pick the top 3</button><p class="rmeta">Review all pending reports from that month first.</p>';
+  const rows=adminWins.length?adminWins.map(w=>'<div class="rit"><div style="display:flex;gap:8px;align-items:center">'+medal(w.place,22)+'<b>'+esc(w.nickname)+'</b><span class="rmeta">'+monthName(w.month)+' · '+w.points+' points · '+w.report_count+' reports</span></div><div class="rmeta">'+(w.contact?'Contact: '+esc(w.contact):'Not claimed yet')+' · Email: '+esc(w.email||"")+'</div></div>').join(""):'<p class="empty">No winners saved yet.</p>';
+  return head+rows;
+}
+async function openWinners(){
+  $("#wBody").innerHTML='<p class="empty">Loading…</p>';
+  $("#wModal").classList.add("open");
+  const {data,error}=await sb.rpc("admin_winners");
+  adminWins=error?[]:(data||[]);
+  $("#wBody").innerHTML=winnersHtml();
+}
+async function closeMonth(m,force){
+  const {data,error}=await sb.rpc("close_month",{p_month:m,p_force:force});
+  if(error){
+    if(error.message==="pending_reports"&&!force){if(confirm("There are still pending reports from that month. Close it anyway?"))return closeMonth(m,true);return;}
+    toast(({month_not_over:"That month is not over yet.",already_closed:"That month is already closed."})[error.message]||("Could not close: "+error.message));
+    return;
+  }
+  toast(data+" winner"+(data===1?"":"s")+" saved.");
+  openWinners();
+}
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
 
 /* ---------- wishlist saving ---------- */
@@ -861,7 +997,7 @@ async function save(){
 
 async function loadUserList(user){
   currentUser=user;
-  alertSeen=null;alertAck=false;alertMarks=new Map();
+  alertSeen=null;alertAck=false;alertMarks=new Map();myWins=[];
   listLoaded=false;
   isAdmin=false;
   if(!user){
@@ -882,6 +1018,7 @@ async function loadUserList(user){
   isAdmin=!!(adm.data);
   if(isAdmin)loadInboxCount();
   loadMyReports();
+  loadMyWins();
   if(lst.error){
     setStatus("Gagal memuat wishlist. Coba refresh halaman.");
     render();
@@ -1255,6 +1392,27 @@ document.addEventListener("click",e=>{
     document.querySelector(".tabs").scrollIntoView({behavior:"smooth"});
   }
   ackAlerts();
+});
+document.addEventListener("click",e=>{
+  const id=e.target.id;
+  if(id==="btnBoard"){openBoard();return;}
+  if(id==="btnCloseB"||id==="bModal"){$("#bModal").classList.remove("open");return;}
+  if(id==="btnCloseC"||id==="cModal"){$("#cModal").classList.remove("open");return;}
+  if(id==="btnSendC"){sendClaim();return;}
+  if(id==="btnWinners"){openWinners();return;}
+  if(id==="btnCloseW"||id==="wModal"){$("#wModal").classList.remove("open");return;}
+  const t=e.target.closest("[data-btab],[data-claim],[data-closem]");
+  if(!t)return;
+  const d=t.dataset;
+  if(d.btab){boardTab=d.btab;boardView();}
+  else if(d.claim){claimId=Number(d.claim);$("#c_contact").value="";$("#cMsg").textContent="";$("#cModal").classList.add("open");}
+  else if(d.closem)closeMonth(d.closem,false);
+});
+document.addEventListener("change",async e=>{
+  if(e.target.id!=="b_hide")return;
+  const {error}=await sb.rpc("set_hide_name",{p_hide:e.target.checked});
+  if(error){toast(error.message==="no_profile"?"Send your first report to choose a nickname.":"Could not save: "+error.message);return;}
+  await loadBoard();
 });
 let lastUid;
 sb.auth.onAuthStateChange((_event,session)=>{
