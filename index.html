@@ -101,6 +101,14 @@ a{color:var(--accent)}
 .lbr.me{background:var(--soft);border-radius:8px;padding-left:8px;padding-right:8px}
 .lbk{width:30px;display:flex;justify-content:center;font-weight:600;color:var(--mute)}
 .lbn{flex:1}.lbp{font-weight:600}
+.mini{display:inline-block;vertical-align:-3px;margin-left:4px}
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.bdg{border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center;background:var(--card)}
+.bdg .n{font-weight:600;font-size:13px;margin-top:4px}
+.bdg.lock{opacity:.45;filter:grayscale(1)}
+.pbar{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:4px}
+.pbar i{display:block;height:100%;background:var(--accent)}
+.unl{display:flex;gap:10px;align-items:center;background:var(--soft);border:1px solid var(--warn);border-radius:12px;padding:8px 12px;margin-bottom:10px}
 .rules{font-size:13.5px}.rules li{margin-bottom:6px}
 .stores{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
 .buyon{font-size:12px;color:var(--mute);margin-right:2px}
@@ -996,6 +1004,86 @@ async function closeMonth(m,force){
   }
   toast(data+" winner"+(data===1?"":"s")+" saved.");
   openWinners();
+}
+MEDAL_C[0]="#9aa3ad";
+const TIERN={1:"Bronze",2:"Silver",3:"Gold"};
+const bmedal=(tier,w)=>medal(4-tier,w);
+const BADGE_NAME={link:"Link Hunter",scout:"Product Scout",eye:"Eagle Eye",first:"First Report"};
+const BADGE_INFO={link:"approved broken-link reports",scout:"approved missing-product reports",eye:"approved wrong-info reports",first:"your first approved report"};
+const BADGE_STEPS={link:"Bronze 5 · Silver 15 · Gold 30",scout:"Bronze 3 · Silver 10 · Gold 25",eye:"Bronze 3 · Silver 10 · Gold 20",first:"One-time medal"};
+let myBadges=[],myTopWins=[];
+async function fetchBadges(){
+  if(!currentUser){myBadges=[];return;}
+  const {data,error}=await sb.rpc("my_badges");
+  myBadges=(error||!data)?[]:data;
+}
+function newBadges(){return myBadges.filter(b=>b.tier>b.seen_tier);}
+function unlockHtml(){
+  return newBadges().map(b=>'<div class="unl">'+bmedal(b.tier,34)+'<div><b>New medal unlocked</b><div>'+esc(b.name)+(b.kind==="first"?"":" · "+TIERN[b.tier])+'</div><div class="rmeta">For '+esc(BADGE_INFO[b.kind])+'</div></div></div>').join("");
+}
+function badgeTag(r){
+  if(!r.badge_tier)return "";
+  return ' <span class="mini" title="'+esc((BADGE_NAME[r.badge_kind]||"")+" · "+TIERN[r.badge_tier])+'">'+bmedal(r.badge_tier,14)+'</span>';
+}
+function boardRowsHtml(){
+  if(!boardRows.length)return '<p class="empty">No approved reports this month yet. Be the first!</p>';
+  const row=r=>'<div class="lbr'+(r.is_me?' me':'')+'"><span class="lbk">'+(r.place<=3?medal(r.place):r.place)+'</span><span class="lbn">'+esc(r.nickname)+badgeTag(r)+(r.is_me?' <span class="rmeta">(you)</span>':'')+'</span><span class="lbp">'+r.points+'</span></div>';
+  const top=boardRows.filter(r=>r.place<=10),me=boardRows.find(r=>r.is_me&&r.place>10);
+  return top.map(row).join("")+(me?'<div class="rmeta" style="text-align:center">…</div>'+row(me):"");
+}
+function shelfHtml(){
+  if(!currentUser)return '<p class="empty">Log in to see your medals.</p>';
+  if(!myBadges.length)return '<p class="empty">Send your first report to start earning medals.</p>';
+  const tile=b=>{
+    const earned=b.tier>0;
+    const label=earned?(b.kind==="first"?"Earned":TIERN[b.tier]):(b.kind==="first"?"Not yet":"Locked");
+    const prog=b.next_at?'<div class="rmeta">'+b.cnt+" of "+b.next_at+(earned?" for "+TIERN[b.tier+1]:"")+'</div><div class="pbar"><i style="width:'+Math.min(100,Math.round(b.cnt*100/b.next_at))+'%"></i></div>':(earned&&b.kind!=="first"?'<div class="rmeta">Top level</div>':"");
+    return '<div class="bdg'+(earned?"":" lock")+'">'+(earned?bmedal(b.tier,40):medal(0,40))+'<div class="n">'+esc(b.name)+'</div><div class="rmeta">'+label+'</div>'+prog+'<div class="rmeta" style="margin-top:4px;font-size:11px">'+esc(BADGE_STEPS[b.kind])+'</div></div>';
+  };
+  const wins=myTopWins.slice().sort((a,b)=>String(b.month).localeCompare(String(a.month))).map(w=>'<div class="bdg">'+medal(w.place,40)+'<div class="n">Top 3 · '+esc(monthName(w.month))+'</div><div class="rmeta">Place #'+w.place+'</div></div>').join("");
+  return '<div class="shelf">'+myBadges.map(tile).join("")+wins+'</div><p class="fine">Medals come from approved reports. Rejected reports and duplicates do not count.</p>';
+}
+function boardView(){
+  const tabs=[["month","This month"],["hof","Hall of fame"],["badges","My medals"],["rules","Rules"]];
+  $("#bTabs").innerHTML=tabs.map(t=>'<button class="btn-sm'+(boardTab===t[0]?" primary":"")+'" data-btab="'+t[0]+'">'+t[1]+'</button>').join("");
+  if(boardTab==="rules"){$("#bBody").innerHTML=RULES_HTML;return;}
+  if(boardTab==="hof"){$("#bBody").innerHTML=hofHtml();return;}
+  if(boardTab==="badges"){$("#bBody").innerHTML=shelfHtml();return;}
+  const hide=boardPrefs?'<label class="chk" style="margin-top:10px"><input type="checkbox" id="b_hide"'+(boardPrefs.hide_name?" checked":"")+'> Hide my nickname (show me as Anonymous)</label>':"";
+  $("#bBody").innerHTML='<div class="rmeta" style="margin-bottom:6px">'+monthName(thisMonthStart())+'</div>'+boardRowsHtml()+hide;
+}
+async function loadBoard(){
+  const [b,h,p]=await Promise.all([sb.rpc("leaderboard"),sb.rpc("hall_of_fame"),currentUser?sb.rpc("my_board_prefs"):Promise.resolve({data:null})]);
+  boardRows=b.error?[]:(b.data||[]);
+  hofRows=h.error?[]:(h.data||[]);
+  boardPrefs=p.error?null:(p.data||null);
+  await fetchBadges();
+  myTopWins=[];
+  if(currentUser){
+    const w=await sb.from("monthly_winners").select("month,place").eq("user_id",currentUser.id);
+    if(!w.error&&w.data)myTopWins=w.data;
+  }
+  boardView();
+}
+async function loadMyReports(){
+  if(!(await fetchMine()))return;
+  await fetchBadges();
+  const nr=mineItems.filter(x=>x.status!=="pending"&&!x.seen).length,nb=newBadges().length;
+  setMineBadge(nr+nb);
+  if(nb>0)toast(nb===1?"You unlocked a new medal! Tap My reports to see it.":"You unlocked "+nb+" new medals! Tap My reports to see them.");
+  else if(nr>0)toast(nr===1?"One of your reports was reviewed. Tap My reports to see it.":nr+" of your reports were reviewed. Tap My reports to see them.");
+}
+async function openMine(){
+  if(!currentUser){$("#authBox").classList.add("open");toast("Please log in to see your reports.");window.scrollTo({top:0,behavior:"smooth"});return;}
+  $("#mBody").innerHTML='<p class="empty">Loading…</p>';
+  $("#mModal").classList.add("open");
+  await fetchMine();
+  await fetchBadges();
+  $("#mBody").innerHTML=unlockHtml()+mineHtml();
+  await sb.rpc("mark_reports_seen");
+  await sb.rpc("mark_badges_seen");
+  myBadges.forEach(b=>{b.seen_tier=b.tier;});
+  setMineBadge(0);
 }
 function setStatus(t,ok){const e=$("#status");e.textContent=t;e.className="status"+(ok?" ok":"");}
 
